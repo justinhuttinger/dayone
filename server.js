@@ -383,6 +383,8 @@ function formatProgramHTML(contactData, programContent) {
   // Page 1: Overview/Core Concepts with InBody Stats
   html += `
     <div class="overview-page">
+      <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
+      
       <div class="page-header">
         <div class="header-left">
           <h1>WEST COAST STRENGTH</h1>
@@ -420,6 +422,8 @@ function formatProgramHTML(contactData, programContent) {
   workouts.forEach(workout => {
     html += `
       <div class="workout-page">
+        <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
+        
         <div class="page-header">
           <div class="header-left">
             <h1>WEST COAST STRENGTH</h1>
@@ -458,6 +462,8 @@ function formatProgramHTML(contactData, programContent) {
     // Meal Plan Overview Page
     html += `
       <div class="workout-page">
+        <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
+        
         <div class="page-header">
           <div class="header-left">
             <h1>WEST COAST STRENGTH</h1>
@@ -489,6 +495,8 @@ function formatProgramHTML(contactData, programContent) {
       mp.mealSchedule.forEach(meal => {
         html += `
           <div class="workout-page">
+            <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
+            
             <div class="page-header">
               <div class="header-left">
                 <h1>WEST COAST STRENGTH</h1>
@@ -536,6 +544,8 @@ function formatProgramHTML(contactData, programContent) {
     if (mp.mealPrepTips || mp.supplementation) {
       html += `
         <div class="workout-page">
+          <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
+          
           <div class="page-header">
             <div class="header-left">
               <h1>WEST COAST STRENGTH</h1>
@@ -569,7 +579,6 @@ function formatProgramHTML(contactData, programContent) {
   
   return html;
 }
-
 // Send program via email
 async function sendProgramEmail(contactData, pdfBuffer) {
   const msg = {
