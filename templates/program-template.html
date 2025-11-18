@@ -24,15 +24,15 @@
       position: relative;
     }
     
-   /* Logo aligned with header on left */
-.logo-image {
-  position: absolute;
-  top: 0.25in;
-  left: 0.5in;
-  width: 70px;
-  height: 70px;
-  opacity: 1;
-}
+    /* Logo aligned with header on left */
+    .logo-image {
+      position: absolute;
+      top: 0.5in;
+      left: 0.5in;
+      width: 70px;
+      height: 70px;
+      opacity: 1;
+    }
     
     /* Header moved right to accommodate logo */
     .page-header {
@@ -128,6 +128,7 @@
     .workout-page {
       page-break-after: always;
       page-break-inside: avoid;
+      position: relative;
     }
     
     .workout-page:last-child {
@@ -166,10 +167,6 @@
   </style>
 </head>
 <body>
-  <!-- Logo in top left on every page -->
-  <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
-  
   {{programContent}}
-  
 </body>
 </html>
