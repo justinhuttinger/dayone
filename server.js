@@ -110,7 +110,7 @@ async function generateProgramWithAI(contactData, formData) {
   
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [
       {
         role: 'user',
@@ -142,7 +142,16 @@ async function generateProgramWithAI(contactData, formData) {
     
     // Try to parse
     const parsed = JSON.parse(cleanedResponse.trim());
-    console.log('✅ Successfully parsed program JSON with', parsed.weeks?.length || 0, 'weeks');
+    
+    // Log what we got
+    console.log('✅ Successfully parsed program JSON');
+    console.log('Has weekTemplate?', !!parsed.weekTemplate);
+    console.log('Has weeks?', !!parsed.weeks);
+    console.log('Has mealPlan?', !!parsed.mealPlan);
+    if (parsed.weekTemplate) {
+      console.log('Number of workouts:', parsed.weekTemplate.workouts?.length || 0);
+    }
+    
     return parsed;
   } catch (e) {
     console.error('❌ JSON parse failed:', e.message);
@@ -156,7 +165,7 @@ async function generateProgramWithAI(contactData, formData) {
       try {
         const extracted = responseText.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(extracted);
-        console.log('✅ Successfully extracted and parsed JSON with', parsed.weeks?.length || 0, 'weeks');
+        console.log('✅ Successfully extracted and parsed JSON');
         return parsed;
       } catch (e2) {
         console.error('❌ Extraction also failed:', e2.message);
