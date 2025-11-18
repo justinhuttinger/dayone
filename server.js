@@ -119,7 +119,6 @@ async function generateProgramWithAI(contactData, formData) {
   const responseText = message.content[0].text;
   
   // Parse the structured response
-  // Expecting JSON format from Claude
   try {
     // Remove markdown code blocks if present
     let cleanedResponse = responseText.trim();
@@ -128,18 +127,41 @@ async function generateProgramWithAI(contactData, formData) {
     const jsonMatch = cleanedResponse.match(/```json\s*\n?([\s\S]*?)\n?```/);
     if (jsonMatch) {
       cleanedResponse = jsonMatch[1];
+      console.log('Extracted from markdown json block');
     } else {
       // Try to find just ``` code blocks
       const codeMatch = cleanedResponse.match(/```\s*\n?([\s\S]*?)\n?```/);
       if (codeMatch) {
         cleanedResponse = codeMatch[1];
+        console.log('Extracted from markdown code block');
       }
     }
     
-    return JSON.parse(cleanedResponse.trim());
+    // Try to parse
+    const parsed = JSON.parse(cleanedResponse.trim());
+    console.log('✅ Successfully parsed program JSON with', parsed.weeks?.length || 0, 'weeks');
+    return parsed;
   } catch (e) {
-    console.error('Failed to parse AI response as JSON:', e);
-    // If not JSON, return as text with basic structure
+    console.error('❌ JSON parse failed:', e.message);
+    console.log('First 500 chars of response:', responseText.substring(0, 500));
+    
+    // Try to find and extract just the JSON object
+    const jsonStart = responseText.indexOf('{');
+    const jsonEnd = responseText.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      try {
+        const extracted = responseText.substring(jsonStart, jsonEnd + 1);
+        const parsed = JSON.parse(extracted);
+        console.log('✅ Successfully extracted and parsed JSON with', parsed.weeks?.length || 0, 'weeks');
+        return parsed;
+      } catch (e2) {
+        console.error('❌ Extraction also failed:', e2.message);
+      }
+    }
+    
+    // Last resort: return as text
+    console.error('⚠️ Falling back to text mode - PDF will show raw JSON');
     return { programText: responseText };
   }
 }
