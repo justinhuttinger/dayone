@@ -188,11 +188,15 @@ async function generatePDF(contactData, programContent) {
   const templatePath = path.join(__dirname, 'templates', 'program-template.html');
   let htmlTemplate = await fs.readFile(templatePath, 'utf8');
   
+  // Load and encode logo as base64
+  const logoPath = path.join(__dirname, 'templates', 'logo.png');
+  const logoBuffer = await fs.readFile(logoPath);
+  const logoBase64 = logoBuffer.toString('base64');
+  
   // Replace placeholders with actual data
   htmlTemplate = htmlTemplate
-    .replace(/{{clientName}}/g, `${contactData.firstName} ${contactData.lastName}`)
-    .replace(/{{currentDate}}/g, new Date().toLocaleDateString())
-    .replace(/{{programContent}}/g, formatProgramHTML(programContent));
+    .replace(/{{logoBase64}}/g, logoBase64)
+    .replace(/{{programContent}}/g, formatProgramHTML(contactData, programContent));
   
   // Generate PDF using PDFShift API
   const response = await axios.post(
@@ -214,77 +218,75 @@ async function generatePDF(contactData, programContent) {
   return Buffer.from(response.data);
 }
 
-// Format program content as HTML
-function formatProgramHTML(programContent) {
+// Format program content as HTML matching WCS Day 1 Program style
+function formatProgramHTML(contactData, programContent) {
   if (!programContent.weeks) {
     return `<div class="program-text">${programContent.programText || 'Program content'}</div>`;
   }
   
-  let html = `<div class="program-overview">${programContent.programOverview}</div>`;
+  let html = '';
   
+  // Page 1: Overview/Core Concepts
+  html += `
+    <div class="overview-page">
+      <div class="page-header">
+        <div class="header-left">
+          <h1>WEST COAST STRENGTH</h1>
+          <h2>TRAINING PROGRAM</h2>
+        </div>
+        <div class="header-right">
+          <p>TRAINER: </p>
+          <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
+        </div>
+      </div>
+      
+      <div class="core-concepts">
+        <h3>CORE CONCEPTS:</h3>
+        <div class="core-concepts-content">
+          ${programContent.programOverview ? `<p>${programContent.programOverview}</p>` : ''}
+          ${programContent.progressionNotes ? `<p><strong>Progression:</strong> ${programContent.progressionNotes}</p>` : ''}
+          ${programContent.generalNotes ? `<p><strong>Important Notes:</strong> ${programContent.generalNotes}</p>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Generate workout pages - one page per workout
   programContent.weeks.forEach(week => {
-    html += `
-      <div class="week-section">
-        <h2>Week ${week.weekNumber}</h2>
-        <p class="week-focus"><strong>Focus:</strong> ${week.focus}</p>
-    `;
-    
     week.workouts.forEach(workout => {
       html += `
-        <div class="workout">
-          <h3>Day ${workout.day}: ${workout.title}</h3>
-          <table class="exercise-table">
-            <thead>
-              <tr>
-                <th>Exercise</th>
-                <th>Sets</th>
-                <th>Reps</th>
-                <th>Rest</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div class="workout-page">
+          <div class="page-header">
+            <div class="header-left">
+              <h1>WEST COAST STRENGTH</h1>
+              <h2>WEEK ${week.weekNumber} - DAY ${workout.day}</h2>
+            </div>
+            <div class="header-right">
+              <p>TRAINER: </p>
+              <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
+            </div>
+          </div>
+          
+          <table class="workout-table">
       `;
       
+      // Add exercises as table rows
       workout.exercises.forEach(exercise => {
+        const setsReps = `${exercise.sets} x ${exercise.reps}${exercise.rest ? ` | ${exercise.rest}` : ''}`;
         html += `
           <tr>
             <td>${exercise.name}</td>
-            <td>${exercise.sets}</td>
-            <td>${exercise.reps}</td>
-            <td>${exercise.rest}</td>
-            <td>${exercise.notes}</td>
+            <td>${setsReps}</td>
           </tr>
         `;
       });
       
       html += `
-            </tbody>
           </table>
         </div>
       `;
     });
-    
-    html += `</div>`;
   });
-  
-  if (programContent.progressionNotes) {
-    html += `
-      <div class="notes-section">
-        <h3>Progression Notes</h3>
-        <p>${programContent.progressionNotes}</p>
-      </div>
-    `;
-  }
-  
-  if (programContent.generalNotes) {
-    html += `
-      <div class="notes-section">
-        <h3>Important Notes</h3>
-        <p>${programContent.generalNotes}</p>
-      </div>
-    `;
-  }
   
   return html;
 }
