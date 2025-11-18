@@ -166,34 +166,79 @@ async function generateProgramWithAI(contactData, formData) {
   }
 }
 
-// Build AI prompt
+// Build AI prompt with full personalization
 function buildPrompt(contactData, formData) {
   const {
+    trainerName = '',
     programGoal = 'general fitness',
     duration = '8',
     daysPerWeek = '4',
     experienceLevel = 'intermediate',
-    equipment = 'full gym'
+    equipment = 'full gym',
+    weight = '',
+    height = '',
+    bodyFat = '',
+    bmr = '',
+    neckLimitation = false,
+    shoulderLimitation = false,
+    elbowWristLimitation = false,
+    lowerBackLimitation = false,
+    hipLimitation = false,
+    kneeLimitation = false,
+    ankleLimitation = false,
+    otherLimitations = '',
+    relationshipWithFood = 'healthy relationship'
   } = formData || {};
   
-  return `You are an expert personal trainer creating a customized training program.
+  // Build limitations summary
+  const limitations = [];
+  if (neckLimitation) limitations.push('neck/cervical');
+  if (shoulderLimitation) limitations.push('shoulder');
+  if (elbowWristLimitation) limitations.push('elbow/wrist');
+  if (lowerBackLimitation) limitations.push('lower back');
+  if (hipLimitation) limitations.push('hip');
+  if (kneeLimitation) limitations.push('knee');
+  if (ankleLimitation) limitations.push('ankle/foot');
+  if (otherLimitations) limitations.push(otherLimitations);
+  
+  const limitationsText = limitations.length > 0 
+    ? `MOVEMENT LIMITATIONS: ${limitations.join(', ')}. For each limitation, modify exercises to use pain-free alternatives or easier progressions. For example: shoulder limitations = use landmine press instead of overhead press; knee limitations = reduce squat depth or use leg press; lower back limitations = avoid heavy loaded spinal flexion/extension.`
+    : 'No reported movement limitations.';
+  
+  return `You are an expert personal trainer and nutritionist creating a fully customized training and nutrition program.
 
 CLIENT INFORMATION:
 - Name: ${contactData.firstName} ${contactData.lastName}
-- Experience Level: ${experienceLevel}
-- Available Equipment: ${equipment}
+- Trainer: ${trainerName || 'To be assigned'}
+- Weight: ${weight} lbs
+- Height: ${height} inches
+- Body Fat: ${bodyFat}%
+- Basal Metabolic Rate: ${bmr} calories/day
 
 PROGRAM REQUIREMENTS:
 - Goal: ${programGoal}
 - Duration: ${duration} weeks
 - Training Days per Week: ${daysPerWeek}
+- Experience Level: ${experienceLevel}
+- Available Equipment: ${equipment}
 
-Please generate ONE WEEK of training that will be repeated for ${duration} weeks. The program should include ${daysPerWeek} workouts.
+${limitationsText}
 
-Return in JSON format with the following structure:
+NUTRITION CONTEXT:
+- Relationship with Food: ${relationshipWithFood}
+
+YOUR TASK: Generate ONE WEEK of training (repeated for ${duration} weeks) AND a detailed meal plan.
+
+Return in JSON format:
 
 {
-  "programOverview": "Brief 2-3 sentence overview of the program approach and how to progress over ${duration} weeks",
+  "programOverview": "2-3 sentence overview of training approach and how it addresses their specific goal and limitations",
+  "inbodyStats": {
+    "weight": "${weight}",
+    "height": "${height}",
+    "bodyFat": "${bodyFat}",
+    "bmr": "${bmr}"
+  },
   "weekTemplate": {
     "workouts": [
       {
@@ -201,25 +246,81 @@ Return in JSON format with the following structure:
         "title": "Workout name (e.g., Upper Body Strength)",
         "exercises": [
           {
-            "name": "Exercise name",
+            "name": "Exercise name (modified for any limitations)",
             "sets": "3",
             "reps": "8-10",
             "rest": "90 seconds",
-            "notes": "Form cues or modifications"
+            "notes": "Form cues, modifications for limitations if applicable"
           }
         ]
       }
     ]
   },
   "progressionNotes": "How to progress week to week (increase weight, reps, etc.)",
-  "generalNotes": "Important reminders, warm-up guidance, cool-down"
+  "generalNotes": "Important reminders, warm-up guidance, cool-down",
+  "mealPlan": {
+    "calorieTarget": "Calculate based on BMR and goal: fat loss = BMR x 1.2-1.3, muscle building = BMR x 1.4-1.5, maintenance = BMR x 1.3-1.4",
+    "macros": {
+      "protein": "Calculate grams and percentage",
+      "carbs": "Calculate grams and percentage", 
+      "fats": "Calculate grams and percentage"
+    },
+    "nutritionPhilosophy": "Brief paragraph addressing their relationship with food: ${relationshipWithFood}",
+    "mealSchedule": [
+      {
+        "meal": "Breakfast",
+        "time": "7:00 AM",
+        "foods": [
+          {
+            "item": "Food item",
+            "amount": "Serving size",
+            "calories": "Number",
+            "protein": "Number g",
+            "carbs": "Number g",
+            "fats": "Number g"
+          }
+        ],
+        "totalCalories": "Sum of all foods"
+      },
+      {
+        "meal": "Mid-Morning Snack",
+        "time": "10:00 AM",
+        "foods": []
+      },
+      {
+        "meal": "Lunch",
+        "time": "12:30 PM",
+        "foods": []
+      },
+      {
+        "meal": "Afternoon Snack",
+        "time": "3:00 PM",
+        "foods": []
+      },
+      {
+        "meal": "Dinner",
+        "time": "6:30 PM",
+        "foods": []
+      },
+      {
+        "meal": "Evening Snack (optional)",
+        "time": "8:30 PM",
+        "foods": []
+      }
+    ],
+    "mealPrepTips": "3-5 practical tips for preparing these meals",
+    "supplementation": "Optional supplement recommendations if appropriate"
+  }
 }
 
-Create ${daysPerWeek} distinct workouts that form a complete weekly training split. Include proper warm-up exercises and ensure balanced programming.
-
-CRITICAL: Return ONLY valid JSON. Do not wrap in markdown code blocks. Do not include any text before or after the JSON. Just the raw JSON object.`;
+CRITICAL INSTRUCTIONS:
+1. Create ${daysPerWeek} distinct workouts that form a complete training split
+2. MODIFY exercises based on limitations - use safer alternatives, reduced ROM, or easier progressions
+3. Calculate precise calorie and macro targets based on their BMR (${bmr}) and goal (${programGoal})
+4. Provide DETAILED meal examples with specific portions and macros for each meal
+5. Address their relationship with food (${relationshipWithFood}) in the nutrition philosophy
+6. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
-
 // Generate PDF from HTML template
 async function generatePDF(contactData, programContent) {
   // Load HTML template
