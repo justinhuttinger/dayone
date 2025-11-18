@@ -1,7 +1,6 @@
 const express = require('express');
 const axios = require('axios');
 const Anthropic = require('@anthropic-ai/sdk');
-const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
@@ -186,7 +185,7 @@ Create a progressive, evidence-based program appropriate for their experience le
 // Generate PDF from HTML template
 async function generatePDF(contactData, programContent) {
   // Load HTML template
-  const templatePath = path.join(__dirname, 'program-template.html');
+  const templatePath = path.join(__dirname, 'templates', 'program-template.html');
   let htmlTemplate = await fs.readFile(templatePath, 'utf8');
   
   // Replace placeholders with actual data
@@ -195,29 +194,24 @@ async function generatePDF(contactData, programContent) {
     .replace(/{{currentDate}}/g, new Date().toLocaleDateString())
     .replace(/{{programContent}}/g, formatProgramHTML(programContent));
   
-  // Launch headless browser and generate PDF
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    headless: 'new'
-  });
-  
-  const page = await browser.newPage();
-  await page.setContent(htmlTemplate, { waitUntil: 'networkidle0' });
-  
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: {
-      top: '20px',
-      right: '20px',
-      bottom: '20px',
-      left: '20px'
+  // Generate PDF using PDFShift API
+  const response = await axios.post(
+    'https://api.pdfshift.io/v3/convert/pdf',
+    {
+      source: htmlTemplate,
+      landscape: false,
+      use_print: false
+    },
+    {
+      auth: {
+        username: 'api',
+        password: process.env.PDFSHIFT_API_KEY
+      },
+      responseType: 'arraybuffer'
     }
-  });
+  );
   
-  await browser.close();
-  
-  return pdfBuffer;
+  return Buffer.from(response.data);
 }
 
 // Format program content as HTML
