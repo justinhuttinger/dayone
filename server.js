@@ -344,10 +344,15 @@ async function generatePDF(contactData, programContent) {
   const logoBuffer = await fs.readFile(logoPath);
   const logoBase64 = logoBuffer.toString('base64');
   
-  // Replace placeholders with actual data
+  // Generate the program content HTML first
+  let programHTML = formatProgramHTML(contactData, programContent);
+  
+  // THEN replace the logo placeholder in the program content
+  programHTML = programHTML.replace(/{{logoBase64}}/g, logoBase64);
+  
+  // Replace placeholders in template
   htmlTemplate = htmlTemplate
-    .replace(/{{logoBase64}}/g, logoBase64)
-    .replace(/{{programContent}}/g, formatProgramHTML(contactData, programContent));
+    .replace(/{{programContent}}/g, programHTML);
   
   console.log('Generated HTML length:', htmlTemplate.length);
   console.log('First 200 chars:', htmlTemplate.substring(0, 200));
