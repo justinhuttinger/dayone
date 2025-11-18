@@ -186,7 +186,7 @@ Create a progressive, evidence-based program appropriate for their experience le
 // Generate PDF from HTML template
 async function generatePDF(contactData, programContent) {
   // Load HTML template
-  const templatePath = path.join(__dirname, 'templates', 'program-template.html');
+  const templatePath = path.join(__dirname, 'program-template.html');
   let htmlTemplate = await fs.readFile(templatePath, 'utf8');
   
   // Replace placeholders with actual data
