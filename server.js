@@ -387,7 +387,7 @@ function formatProgramHTML(contactData, programContent) {
   
   // Page 1: Overview/Core Concepts with InBody Stats
   html += `
-    <div class="overview-page">
+    <div class="page">
       <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
       
       <div class="page-header">
@@ -426,7 +426,7 @@ function formatProgramHTML(contactData, programContent) {
   // Generate workout pages - one page per workout
   workouts.forEach(workout => {
     html += `
-      <div class="workout-page">
+      <div class="page">
         <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
         
         <div class="page-header">
@@ -466,7 +466,7 @@ function formatProgramHTML(contactData, programContent) {
     
     // Meal Plan Overview Page
     html += `
-      <div class="workout-page">
+      <div class="page">
         <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
         
         <div class="page-header">
@@ -499,7 +499,7 @@ function formatProgramHTML(contactData, programContent) {
     if (mp.mealSchedule && mp.mealSchedule.length > 0) {
       mp.mealSchedule.forEach(meal => {
         html += `
-          <div class="workout-page">
+          <div class="page">
             <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
             
             <div class="page-header">
@@ -548,7 +548,7 @@ function formatProgramHTML(contactData, programContent) {
     // Meal Prep Tips Page
     if (mp.mealPrepTips || mp.supplementation) {
       html += `
-        <div class="workout-page">
+        <div class="page">
           <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
           
           <div class="page-header">
@@ -584,6 +584,7 @@ function formatProgramHTML(contactData, programContent) {
   
   return html;
 }
+
 // Send program via email
 async function sendProgramEmail(contactData, pdfBuffer) {
   const msg = {
