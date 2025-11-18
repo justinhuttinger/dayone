@@ -365,7 +365,7 @@ function formatProgramHTML(contactData, programContent) {
   
   let html = '';
   
-  // Page 1: Overview/Core Concepts
+  // Page 1: Overview/Core Concepts with InBody Stats
   html += `
     <div class="overview-page">
       <div class="page-header">
@@ -374,7 +374,7 @@ function formatProgramHTML(contactData, programContent) {
           <h2>TRAINING PROGRAM</h2>
         </div>
         <div class="header-right">
-          <p>TRAINER: </p>
+          <p>TRAINER: ${programContent.trainerName || ''}</p>
           <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
         </div>
       </div>
@@ -386,6 +386,14 @@ function formatProgramHTML(contactData, programContent) {
           ${programContent.progressionNotes ? `<p><strong>Progression:</strong> ${programContent.progressionNotes}</p>` : ''}
           ${programContent.generalNotes ? `<p><strong>Important Notes:</strong> ${programContent.generalNotes}</p>` : ''}
         </div>
+        
+        ${programContent.inbodyStats ? `
+          <h3 style="margin-top: 40px;">INBODY METRICS:</h3>
+          <div class="core-concepts-content">
+            <p><strong>Weight:</strong> ${programContent.inbodyStats.weight} lbs | <strong>Height:</strong> ${programContent.inbodyStats.height} inches</p>
+            <p><strong>Body Fat:</strong> ${programContent.inbodyStats.bodyFat}% | <strong>Basal Metabolic Rate:</strong> ${programContent.inbodyStats.bmr} calories/day</p>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -403,7 +411,7 @@ function formatProgramHTML(contactData, programContent) {
             <h2>DAY ${workout.day} - ${workout.title.toUpperCase()}</h2>
           </div>
           <div class="header-right">
-            <p>TRAINER: </p>
+            <p>TRAINER: ${programContent.trainerName || ''}</p>
             <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
           </div>
         </div>
@@ -427,6 +435,122 @@ function formatProgramHTML(contactData, programContent) {
       </div>
     `;
   });
+  
+  // Add Meal Plan Pages
+  if (programContent.mealPlan) {
+    const mp = programContent.mealPlan;
+    
+    // Meal Plan Overview Page
+    html += `
+      <div class="workout-page">
+        <div class="page-header">
+          <div class="header-left">
+            <h1>WEST COAST STRENGTH</h1>
+            <h2>NUTRITION PLAN</h2>
+          </div>
+          <div class="header-right">
+            <p>TRAINER: ${programContent.trainerName || ''}</p>
+            <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
+          </div>
+        </div>
+        
+        <div class="core-concepts">
+          <h3>DAILY TARGETS:</h3>
+          <div class="core-concepts-content">
+            <p><strong>Total Calories:</strong> ${mp.calorieTarget} calories/day</p>
+            <p><strong>Protein:</strong> ${mp.macros.protein} | <strong>Carbs:</strong> ${mp.macros.carbs} | <strong>Fats:</strong> ${mp.macros.fats}</p>
+          </div>
+          
+          <h3 style="margin-top: 30px;">NUTRITION APPROACH:</h3>
+          <div class="core-concepts-content">
+            <p>${mp.nutritionPhilosophy}</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Detailed Meal Schedule Pages
+    if (mp.mealSchedule && mp.mealSchedule.length > 0) {
+      mp.mealSchedule.forEach(meal => {
+        html += `
+          <div class="workout-page">
+            <div class="page-header">
+              <div class="header-left">
+                <h1>WEST COAST STRENGTH</h1>
+                <h2>${meal.meal.toUpperCase()} - ${meal.time}</h2>
+              </div>
+              <div class="header-right">
+                <p>TRAINER: ${programContent.trainerName || ''}</p>
+                <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
+              </div>
+            </div>
+            
+            <table class="workout-table">
+              <tr style="background-color: #f0f0f0;">
+                <td><strong>Food Item</strong></td>
+                <td><strong>Macros (P/C/F)</strong></td>
+              </tr>
+        `;
+        
+        if (meal.foods && meal.foods.length > 0) {
+          meal.foods.forEach(food => {
+            html += `
+              <tr>
+                <td>${food.item} - ${food.amount}</td>
+                <td>${food.protein}g / ${food.carbs}g / ${food.fats}g (${food.calories} cal)</td>
+              </tr>
+            `;
+          });
+          
+          html += `
+              <tr style="background-color: #E31E24; color: white;">
+                <td><strong>MEAL TOTAL</strong></td>
+                <td><strong>${meal.totalCalories} calories</strong></td>
+              </tr>
+          `;
+        }
+        
+        html += `
+            </table>
+          </div>
+        `;
+      });
+    }
+    
+    // Meal Prep Tips Page
+    if (mp.mealPrepTips || mp.supplementation) {
+      html += `
+        <div class="workout-page">
+          <div class="page-header">
+            <div class="header-left">
+              <h1>WEST COAST STRENGTH</h1>
+              <h2>MEAL PREP & TIPS</h2>
+            </div>
+            <div class="header-right">
+              <p>TRAINER: ${programContent.trainerName || ''}</p>
+              <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
+            </div>
+          </div>
+          
+          <div class="core-concepts">
+            ${mp.mealPrepTips ? `
+              <h3>MEAL PREP TIPS:</h3>
+              <div class="core-concepts-content">
+                <p>${mp.mealPrepTips}</p>
+              </div>
+            ` : ''}
+            
+            ${mp.supplementation ? `
+              <h3 style="margin-top: 30px;">SUPPLEMENTATION:</h3>
+              <div class="core-concepts-content">
+                <p>${mp.supplementation}</p>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+  }
   
   return html;
 }
