@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Training Program</title>
   <style>
+    @page {
+      size: letter;
+      margin: 0.5in;
+    }
+    
     * {
       margin: 0;
       padding: 0;
@@ -12,179 +17,140 @@
     }
     
     body {
-      font-family: 'Arial', sans-serif;
-      line-height: 1.6;
-      color: #333;
-      padding: 20px;
+      font-family: 'Arial', 'Helvetica', sans-serif;
+      color: #000;
+      position: relative;
     }
     
-    .header {
-      border-bottom: 4px solid #e74c3c;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
-    }
-    
-    .logo {
-      font-size: 28px;
-      font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 10px;
-    }
-    
-    .logo span {
-      color: #e74c3c;
-    }
-    
-    .client-info {
-      background-color: #f8f9fa;
-      padding: 15px;
-      border-radius: 5px;
+    /* Header on every page */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 4px solid #E31E24;
     }
     
-    .client-info h1 {
-      color: #2c3e50;
-      font-size: 24px;
-      margin-bottom: 5px;
-    }
-    
-    .client-info .date {
-      color: #7f8c8d;
+    .header-left h1 {
       font-size: 14px;
+      font-weight: normal;
+      color: #E31E24;
+      margin: 0;
+      letter-spacing: 2px;
     }
     
-    .program-overview {
-      background-color: #ecf0f1;
-      padding: 20px;
-      border-left: 4px solid #e74c3c;
+    .header-left h2 {
+      font-size: 42px;
+      font-weight: 900;
+      color: #000;
+      margin: 5px 0 0 0;
+      line-height: 1;
+      text-transform: uppercase;
+      letter-spacing: -1px;
+    }
+    
+    .header-right {
+      text-align: right;
+      padding-top: 10px;
+    }
+    
+    .header-right p {
+      font-size: 13px;
+      color: #E31E24;
+      margin: 2px 0;
+      font-weight: bold;
+    }
+    
+    /* Watermark logo */
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.08;
+      width: 500px;
+      height: 500px;
+      z-index: -1;
+      pointer-events: none;
+    }
+    
+    /* Overview page */
+    .overview-page {
+      page-break-after: always;
+    }
+    
+    .core-concepts {
+      margin-top: 40px;
+    }
+    
+    .core-concepts h3 {
+      font-size: 36px;
+      font-weight: 900;
+      color: #000;
       margin-bottom: 30px;
-      font-size: 15px;
+      text-transform: uppercase;
+    }
+    
+    .core-concepts-content {
+      font-size: 14px;
       line-height: 1.8;
+      color: #333;
     }
     
-    .week-section {
-      margin-bottom: 40px;
-      page-break-inside: avoid;
-    }
-    
-    .week-section h2 {
-      background-color: #2c3e50;
-      color: white;
-      padding: 12px 15px;
-      border-radius: 5px;
-      font-size: 20px;
-      margin-bottom: 10px;
-    }
-    
-    .week-focus {
-      font-style: italic;
-      color: #555;
-      margin-bottom: 20px;
-      padding-left: 15px;
-    }
-    
-    .workout {
-      margin-bottom: 25px;
-      page-break-inside: avoid;
-    }
-    
-    .workout h3 {
-      color: #e74c3c;
-      font-size: 18px;
+    .core-concepts-content p {
       margin-bottom: 15px;
-      padding-left: 10px;
-      border-left: 3px solid #e74c3c;
     }
     
-    .exercise-table {
+    .core-concepts-content strong {
+      color: #E31E24;
+      font-weight: bold;
+    }
+    
+    /* Workout pages */
+    .workout-page {
+      page-break-after: always;
+      page-break-inside: avoid;
+    }
+    
+    .workout-page:last-child {
+      page-break-after: auto;
+    }
+    
+    .workout-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .exercise-table thead {
-      background-color: #34495e;
-      color: white;
-    }
-    
-    .exercise-table th {
-      padding: 12px 10px;
-      text-align: left;
-      font-size: 13px;
-      font-weight: 600;
-    }
-    
-    .exercise-table td {
-      padding: 10px;
-      border-bottom: 1px solid #ecf0f1;
-      font-size: 13px;
-    }
-    
-    .exercise-table tbody tr:nth-child(even) {
-      background-color: #f8f9fa;
-    }
-    
-    .exercise-table tbody tr:hover {
-      background-color: #e8f4f8;
-    }
-    
-    .notes-section {
-      background-color: #fff3cd;
-      border-left: 4px solid #ffc107;
-      padding: 20px;
       margin-top: 30px;
-      page-break-inside: avoid;
     }
     
-    .notes-section h3 {
-      color: #856404;
-      font-size: 18px;
-      margin-bottom: 10px;
+    .workout-table td {
+      border: 2px solid #000;
+      padding: 15px;
+      font-size: 13px;
+      vertical-align: top;
     }
     
-    .notes-section p {
-      color: #533f03;
-      line-height: 1.8;
+    .workout-table td:first-child {
+      width: 60%;
+      font-weight: normal;
     }
     
-    .program-text {
-      white-space: pre-wrap;
-      font-family: 'Courier New', monospace;
-      background-color: #f8f9fa;
-      padding: 20px;
-      border-radius: 5px;
-      line-height: 1.8;
+    .workout-table td:last-child {
+      width: 40%;
+      text-align: left;
+      font-weight: bold;
     }
     
-    .footer {
-      margin-top: 50px;
-      padding-top: 20px;
-      border-top: 2px solid #ecf0f1;
-      text-align: center;
-      color: #7f8c8d;
-      font-size: 12px;
+    .workout-table tr {
+      height: 60px;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="logo">
-      WEST COAST <span>STRENGTH</span>
-    </div>
-    <p style="color: #7f8c8d; font-size: 14px;">Personal Training Program</p>
-  </div>
-  
-  <div class="client-info">
-    <h1>{{clientName}}</h1>
-    <p class="date">Program Date: {{currentDate}}</p>
-  </div>
+  <!-- Watermark on every page -->
+  <img src="data:image/png;base64,{{logoBase64}}" class="watermark" alt="WCS Logo">
   
   {{programContent}}
   
-  <div class="footer">
-    <p>West Coast Strength | For questions about this program, contact your trainer</p>
-    <p>© 2024 West Coast Strength. All rights reserved.</p>
-  </div>
 </body>
 </html>
