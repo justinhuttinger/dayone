@@ -357,13 +357,19 @@ async function generatePDF(contactData, programContent) {
   console.log('Generated HTML length:', htmlTemplate.length);
   console.log('First 200 chars:', htmlTemplate.substring(0, 200));
   
-  // Generate PDF using PDFShift API
+  // Generate PDF using PDFShift API with margins
   const response = await axios.post(
     'https://api.pdfshift.io/v3/convert/pdf',
     {
       source: htmlTemplate,
       landscape: false,
-      use_print: false
+      use_print: true,
+      margin: {
+        top: '0.5in',
+        bottom: '0.5in',
+        left: '0.5in',
+        right: '0.5in'
+      }
     },
     {
       auth: {
