@@ -27,14 +27,40 @@ app.post('/webhook/generate-program', async (req, res) => {
   try {
     console.log('Received webhook:', JSON.stringify(req.body, null, 2));
     
-    // Extract data from GHL webhook
-    const { contactId, locationId, formData } = req.body;
+    // Parse GHL webhook format
+    const contactId = req.body.contact_id;
+    const locationId = req.body.location?.id;
+    
+    // Map GHL field names to our format
+    const formData = {
+      trainerName: req.body['Service Employee'] || '',
+      programGoal: req.body['Program Goal'] || 'general fitness',
+      duration: (req.body['Duration'] || '8 weeks').replace(' weeks', ''),
+      daysPerWeek: (req.body['Days per Week'] || '4').replace(' days a week', '').replace(' day a week', ''),
+      experienceLevel: (req.body['Experience Level'] || 'intermediate').toLowerCase(),
+      equipment: req.body['Equipment'] || 'full gym',
+      weight: req.body['Weight'] || '',
+      height: req.body['Height'] || '',
+      bodyFat: (req.body['Body Fat'] || '').replace('%', ''),
+      bmr: req.body['BMR'] || '',
+      neckLimitation: Array.isArray(req.body['Neck Limitation']) && req.body['Neck Limitation'].includes('Yes'),
+      shoulderLimitation: Array.isArray(req.body['Shoulder Limitation']) && req.body['Shoulder Limitation'].includes('Yes'),
+      elbowWristLimitation: Array.isArray(req.body['Elbow Wrist Limitation']) && req.body['Elbow Wrist Limitation'].includes('Yes'),
+      lowerBackLimitation: Array.isArray(req.body['Lower Back Limitation']) && req.body['Lower Back Limitation'].includes('Yes'),
+      hipLimitation: Array.isArray(req.body['Hip Limitation']) && req.body['Hip Limitation'].includes('Yes'),
+      kneeLimitation: Array.isArray(req.body['Knee Limitation']) && req.body['Knee Limitation'].includes('Yes'),
+      ankleLimitation: Array.isArray(req.body['Ankle Limitation']) && req.body['Ankle Limitation'].includes('Yes'),
+      otherLimitations: req.body['Other Limitations'] || '',
+      relationshipWithFood: req.body['Relationship with Food'] || 'healthy relationship'
+    };
+    
+    console.log('Parsed formData:', JSON.stringify(formData, null, 2));
     
     // Quick response to GHL
     res.status(200).json({ message: 'Program generation started' });
     
     // Process asynchronously
-    await generateAndSendProgram(contactId, locationId, formData);
+    generateAndSendProgram(contactId, locationId, formData);
     
   } catch (error) {
     console.error('Webhook error:', error);
