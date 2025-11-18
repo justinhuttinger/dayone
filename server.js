@@ -188,36 +188,34 @@ PROGRAM REQUIREMENTS:
 - Duration: ${duration} weeks
 - Training Days per Week: ${daysPerWeek}
 
-Please generate a comprehensive training program in JSON format with the following structure:
+Please generate ONE WEEK of training that will be repeated for ${duration} weeks. The program should include ${daysPerWeek} workouts.
+
+Return in JSON format with the following structure:
 
 {
-  "programOverview": "Brief 2-3 sentence overview of the program approach",
-  "weeks": [
-    {
-      "weekNumber": 1,
-      "focus": "What this week emphasizes",
-      "workouts": [
-        {
-          "day": 1,
-          "title": "Workout name (e.g., Upper Body Strength)",
-          "exercises": [
-            {
-              "name": "Exercise name",
-              "sets": "3",
-              "reps": "8-10",
-              "rest": "90 seconds",
-              "notes": "Form cues or modifications"
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "progressionNotes": "How to progress week to week",
+  "programOverview": "Brief 2-3 sentence overview of the program approach and how to progress over ${duration} weeks",
+  "weekTemplate": {
+    "workouts": [
+      {
+        "day": 1,
+        "title": "Workout name (e.g., Upper Body Strength)",
+        "exercises": [
+          {
+            "name": "Exercise name",
+            "sets": "3",
+            "reps": "8-10",
+            "rest": "90 seconds",
+            "notes": "Form cues or modifications"
+          }
+        ]
+      }
+    ]
+  },
+  "progressionNotes": "How to progress week to week (increase weight, reps, etc.)",
   "generalNotes": "Important reminders, warm-up guidance, cool-down"
 }
 
-Create a progressive, evidence-based program appropriate for their experience level. Include proper warm-up exercises and ensure balanced programming.
+Create ${daysPerWeek} distinct workouts that form a complete weekly training split. Include proper warm-up exercises and ensure balanced programming.
 
 CRITICAL: Return ONLY valid JSON. Do not wrap in markdown code blocks. Do not include any text before or after the JSON. Just the raw JSON object.`;
 }
@@ -260,7 +258,7 @@ async function generatePDF(contactData, programContent) {
 
 // Format program content as HTML matching WCS Day 1 Program style
 function formatProgramHTML(contactData, programContent) {
-  if (!programContent.weeks) {
+  if (!programContent.weekTemplate && !programContent.weeks) {
     return `<div class="program-text">${programContent.programText || 'Program content'}</div>`;
   }
   
@@ -291,41 +289,42 @@ function formatProgramHTML(contactData, programContent) {
     </div>
   `;
   
+  // Get the workout template
+  const workouts = programContent.weekTemplate?.workouts || programContent.weeks?.[0]?.workouts || [];
+  
   // Generate workout pages - one page per workout
-  programContent.weeks.forEach(week => {
-    week.workouts.forEach(workout => {
-      html += `
-        <div class="workout-page">
-          <div class="page-header">
-            <div class="header-left">
-              <h1>WEST COAST STRENGTH</h1>
-              <h2>WEEK ${week.weekNumber} - DAY ${workout.day}</h2>
-            </div>
-            <div class="header-right">
-              <p>TRAINER: </p>
-              <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
-            </div>
+  workouts.forEach(workout => {
+    html += `
+      <div class="workout-page">
+        <div class="page-header">
+          <div class="header-left">
+            <h1>WEST COAST STRENGTH</h1>
+            <h2>DAY ${workout.day} - ${workout.title.toUpperCase()}</h2>
           </div>
-          
-          <table class="workout-table">
-      `;
-      
-      // Add exercises as table rows
-      workout.exercises.forEach(exercise => {
-        const setsReps = `${exercise.sets} x ${exercise.reps}${exercise.rest ? ` | ${exercise.rest}` : ''}`;
-        html += `
-          <tr>
-            <td>${exercise.name}</td>
-            <td>${setsReps}</td>
-          </tr>
-        `;
-      });
-      
-      html += `
-          </table>
+          <div class="header-right">
+            <p>TRAINER: </p>
+            <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
+          </div>
         </div>
+        
+        <table class="workout-table">
+    `;
+    
+    // Add exercises as table rows
+    workout.exercises.forEach(exercise => {
+      const setsReps = `${exercise.sets} x ${exercise.reps}`;
+      html += `
+        <tr>
+          <td>${exercise.name}</td>
+          <td>${setsReps}</td>
+        </tr>
       `;
     });
+    
+    html += `
+        </table>
+      </div>
+    `;
   });
   
   return html;
