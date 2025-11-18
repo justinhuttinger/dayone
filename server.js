@@ -121,8 +121,24 @@ async function generateProgramWithAI(contactData, formData) {
   // Parse the structured response
   // Expecting JSON format from Claude
   try {
-    return JSON.parse(responseText);
+    // Remove markdown code blocks if present
+    let cleanedResponse = responseText.trim();
+    
+    // Check for markdown JSON code blocks and extract
+    const jsonMatch = cleanedResponse.match(/```json\s*\n?([\s\S]*?)\n?```/);
+    if (jsonMatch) {
+      cleanedResponse = jsonMatch[1];
+    } else {
+      // Try to find just ``` code blocks
+      const codeMatch = cleanedResponse.match(/```\s*\n?([\s\S]*?)\n?```/);
+      if (codeMatch) {
+        cleanedResponse = codeMatch[1];
+      }
+    }
+    
+    return JSON.parse(cleanedResponse.trim());
   } catch (e) {
+    console.error('Failed to parse AI response as JSON:', e);
     // If not JSON, return as text with basic structure
     return { programText: responseText };
   }
@@ -179,7 +195,9 @@ Please generate a comprehensive training program in JSON format with the followi
   "generalNotes": "Important reminders, warm-up guidance, cool-down"
 }
 
-Create a progressive, evidence-based program appropriate for their experience level. Include proper warm-up exercises and ensure balanced programming.`;
+Create a progressive, evidence-based program appropriate for their experience level. Include proper warm-up exercises and ensure balanced programming.
+
+CRITICAL: Return ONLY valid JSON. Do not wrap in markdown code blocks. Do not include any text before or after the JSON. Just the raw JSON object.`;
 }
 
 // Generate PDF from HTML template
