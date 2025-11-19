@@ -93,18 +93,23 @@ app.post('/webhook/generate-program', async (req, res) => {
     const club = getClubByLocationId(locationId);
     console.log(`📍 Processing for: ${club.clubName} (${club.clubNumber || 'default'})`);
     
-    // Map GHL field names to our format
+    // Map GHL field names to our format - capture ALL PT Intake fields
     const formData = {
+      // Trainer & Program Design
       trainerName: req.body['Service Employee'] || '',
       programGoal: req.body['Program Goal'] || 'general fitness',
       duration: String(req.body['Duration (Weeks)'] || req.body['Duration'] || 8).replace(' weeks', ''),
       daysPerWeek: String(req.body['Days Per Week'] || req.body['Days per Week'] || 4).replace(' days a week', '').replace(' day a week', ''),
       experienceLevel: (req.body['Experience Level'] || 'intermediate').toLowerCase(),
       equipment: req.body['Equipment'] || 'full gym',
+      
+      // InBody Metrics
       weight: req.body['Weight (Lbs)'] || req.body['Weight'] || '',
       height: req.body['Height'] || '',
       bodyFat: String(req.body['Body Fat (%)'] || req.body['Body Fat'] || '').replace('%', ''),
       bmr: req.body['BMR'] || '',
+      
+      // Movement Limitations
       neckLimitation: req.body['Neck Limitation'] === 'Yes' || (Array.isArray(req.body['Neck Limitation']) && req.body['Neck Limitation'].includes('Yes')),
       shoulderLimitation: req.body['Shoulder Limitation'] === 'Yes' || (Array.isArray(req.body['Shoulder Limitation']) && req.body['Shoulder Limitation'].includes('Yes')),
       elbowWristLimitation: req.body['Elbow Wrist Limitation'] === 'Yes' || (Array.isArray(req.body['Elbow Wrist Limitation']) && req.body['Elbow Wrist Limitation'].includes('Yes')),
@@ -112,7 +117,26 @@ app.post('/webhook/generate-program', async (req, res) => {
       hipLimitation: req.body['Hip Limitation'] === 'Yes' || (Array.isArray(req.body['Hip Limitation']) && req.body['Hip Limitation'].includes('Yes')),
       kneeLimitation: req.body['Knee Limitation'] === 'Yes' || (Array.isArray(req.body['Knee Limitation']) && req.body['Knee Limitation'].includes('Yes')),
       ankleLimitation: req.body['Ankle Limitation'] === 'Yes' || (Array.isArray(req.body['Ankle Limitation']) && req.body['Ankle Limitation'].includes('Yes')),
-      otherLimitations: req.body['Other Limitations'] || ''
+      otherLimitations: req.body['Other Limitations'] || '',
+      
+      // Client Goals & Interests
+      interestedIn: req.body['What are you interested in?'] || '',
+      interestedInPT: req.body['Are you interested in Personal Training?'] || '',
+      preferredCoach: req.body['Do you have a Preferred Coach?'] || '',
+      fitnessGoals: req.body['What are your Fitness Goals?'] || '',
+      
+      // Medical Screening Questions
+      heartCondition: req.body['Has a Doctor Ever Said You Have a Heart Condition & Recommended Only Medically Supervised Activity?'] || '',
+      chestPain: req.body['Do You Experience Chest Pain During Physical Activity?'] || '',
+      boneJointProblem: req.body['Do You Have a Bone or Joint Problem that Physical Activity Could Aggravate?'] || '',
+      bloodPressureMedication: req.body['Has Your Doctor Recommended Medication for your Blood Pressure?'] || '',
+      medicalSupervisionNeeded: req.body['Are you Aware of Any Reason you Should Not Exercise Without Medical Supervision'] || '',
+      
+      // Current Fitness & Nutrition
+      currentWorkoutRoutine: req.body['What is Your Current Workout Routine?'] || '',
+      followsDietPlan: req.body['Do You Follow a Diet / Meal Plan?'] || '',
+      biggestObstacles: req.body['What are your Biggest Obstacles?'] || '',
+      wouldHelpMost: req.body['What Would Help You the Most?'] || ''
     };
     
     console.log('📝 Parsed formData:', JSON.stringify(formData, null, 2));
@@ -149,7 +173,16 @@ async function generateAndSendProgram(contactId, club, formData) {
     // Step 3: Add trainer name to program content
     programContent.trainerName = formData.trainerName || '';
     
-    // Step 4: Create PDF from template
+    // Step 4: Add medical screening to program content (for PDF display - always include for legal purposes)
+    programContent.medicalScreening = {
+      heartCondition: formData.heartCondition || 'No',
+      chestPain: formData.chestPain || 'No',
+      boneJointProblem: formData.boneJointProblem || 'No',
+      bloodPressureMedication: formData.bloodPressureMedication || 'No',
+      medicalSupervisionNeeded: formData.medicalSupervisionNeeded || 'No'
+    };
+    
+    // Step 5: Create PDF from template
     const pdfBuffer = await generatePDF(contactData, programContent);
     console.log('📄 PDF created');
     
@@ -280,7 +313,20 @@ function buildPrompt(contactData, formData) {
     hipLimitation,
     kneeLimitation,
     ankleLimitation,
-    otherLimitations
+    otherLimitations,
+    interestedIn,
+    interestedInPT,
+    preferredCoach,
+    fitnessGoals,
+    heartCondition,
+    chestPain,
+    boneJointProblem,
+    bloodPressureMedication,
+    medicalSupervisionNeeded,
+    currentWorkoutRoutine,
+    followsDietPlan,
+    biggestObstacles,
+    wouldHelpMost
   } = formData;
   
   // Build limitations array
@@ -303,6 +349,31 @@ function buildPrompt(contactData, formData) {
     ? `INBODY METRICS: Weight: ${weight} lbs, Height: ${height} inches, Body Fat: ${bodyFat}%, BMR: ${bmr} calories/day`
     : '';
   
+  // Build medical screening section
+  const medicalScreening = [];
+  if (heartCondition && heartCondition !== 'No') medicalScreening.push(`Heart condition requiring medical supervision: ${heartCondition}`);
+  if (chestPain && chestPain !== 'No') medicalScreening.push(`Chest pain during activity: ${chestPain}`);
+  if (boneJointProblem && boneJointProblem !== 'No') medicalScreening.push(`Bone/joint concerns: ${boneJointProblem}`);
+  if (bloodPressureMedication && bloodPressureMedication !== 'No') medicalScreening.push(`Blood pressure medication: ${bloodPressureMedication}`);
+  if (medicalSupervisionNeeded && medicalSupervisionNeeded !== 'No') medicalScreening.push(`Other medical supervision needed: ${medicalSupervisionNeeded}`);
+  
+  const medicalText = medicalScreening.length > 0
+    ? `\nMEDICAL SCREENING ALERTS:\n- ${medicalScreening.join('\n- ')}\n⚠️ IMPORTANT: Design a conservative program that accounts for these medical considerations.`
+    : '';
+  
+  // Build client context section
+  const clientContext = [];
+  if (fitnessGoals) clientContext.push(`Fitness Goals: ${fitnessGoals}`);
+  if (currentWorkoutRoutine) clientContext.push(`Current Routine: ${currentWorkoutRoutine}`);
+  if (followsDietPlan) clientContext.push(`Diet/Meal Plan: ${followsDietPlan}`);
+  if (biggestObstacles) clientContext.push(`Biggest Obstacles: ${biggestObstacles}`);
+  if (wouldHelpMost) clientContext.push(`What Would Help Most: ${wouldHelpMost}`);
+  if (interestedIn) clientContext.push(`Interests: ${interestedIn}`);
+  
+  const clientContextText = clientContext.length > 0
+    ? `\nCLIENT BACKGROUND:\n${clientContext.join('\n')}`
+    : '';
+  
   return `You are an expert personal trainer creating a ${duration}-week training program for ${contactData.firstName}.
 
 CLIENT INFO:
@@ -312,20 +383,25 @@ CLIENT INFO:
 - Training Days Per Week: ${daysPerWeek}
 - Primary Goal: ${programGoal}
 ${inbodyText}
+${clientContextText}
 
 ${limitationsText}
+${medicalText}
 
 IMPORTANT: If there are movement limitations, you MUST intelligently modify exercises. For example:
 - Shoulder limitations → Use landmine presses instead of overhead presses, focus on neutral grip movements
 - Knee limitations → Use leg press variations, step-ups, or belt squats instead of back squats
 - Lower back limitations → Use hex bar deadlifts, hip thrusts, or leg curls instead of conventional deadlifts
 
+${medicalScreening.length > 0 ? 'MEDICAL CONSIDERATIONS: This client has medical screening alerts. Keep intensity moderate, avoid high-impact movements, emphasize proper breathing and form, and include longer rest periods.\n' : ''}
+
 Create a comprehensive training program with:
-1. A program overview explaining the training approach and how it addresses their goal
+1. A program overview explaining the training approach and how it addresses their goal${fitnessGoals ? ` (specifically: ${fitnessGoals})` : ''}
 2. ${daysPerWeek} distinct workouts per week (e.g., Upper/Lower split, Push/Pull/Legs, etc.)
 3. Each workout should have 5-8 exercises with specific sets, reps, and rest periods
 4. Include form cues and technique notes for each exercise
 5. Progression guidelines for advancing week to week
+${currentWorkoutRoutine ? `6. Consider their current routine (${currentWorkoutRoutine}) when designing progression` : ''}
 
 Return your response as a JSON object with this EXACT structure:
 
@@ -358,8 +434,9 @@ Return your response as a JSON object with this EXACT structure:
 CRITICAL INSTRUCTIONS:
 1. Create ${daysPerWeek} distinct workouts that form a complete training split
 2. MODIFY exercises based on limitations - use safer alternatives, reduced ROM, or easier progressions
-3. Include specific form cues and technique notes for each exercise
-4. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+3. ${medicalScreening.length > 0 ? 'Use CONSERVATIVE programming due to medical screening alerts - moderate intensity, avoid high-impact' : 'Include specific form cues and technique notes for each exercise'}
+4. ${biggestObstacles ? `Address their biggest obstacle: ${biggestObstacles}` : 'Focus on sustainable, progressive programming'}
+5. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 
 // Generate PDF from HTML template
@@ -419,7 +496,7 @@ function formatProgramHTML(contactData, programContent) {
   
   let html = '';
   
-  // Page 1: Overview/Core Concepts with InBody Stats
+  // Page 1: Overview/Core Concepts with InBody Stats and Medical Screening
   html += `
     <div class="page">
       <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
@@ -444,10 +521,21 @@ function formatProgramHTML(contactData, programContent) {
         </div>
         
         ${programContent.inbodyStats ? `
-          <h3 style="margin-top: 40px;">INBODY METRICS:</h3>
+          <h3 style="margin-top: 30px;">INBODY METRICS:</h3>
           <div class="core-concepts-content">
             <p><strong>Weight:</strong> ${programContent.inbodyStats.weight} lbs | <strong>Height:</strong> ${programContent.inbodyStats.height} inches</p>
             <p><strong>Body Fat:</strong> ${programContent.inbodyStats.bodyFat}% | <strong>Basal Metabolic Rate:</strong> ${programContent.inbodyStats.bmr} calories/day</p>
+          </div>
+        ` : ''}
+        
+        ${programContent.medicalScreening || formData ? `
+          <h3 style="margin-top: 30px;">MEDICAL SCREENING:</h3>
+          <div class="core-concepts-content" style="font-size: 11px;">
+            <p><strong>Heart Condition:</strong> ${programContent.medicalScreening?.heartCondition || 'No'}</p>
+            <p><strong>Chest Pain During Activity:</strong> ${programContent.medicalScreening?.chestPain || 'No'}</p>
+            <p><strong>Bone/Joint Problem:</strong> ${programContent.medicalScreening?.boneJointProblem || 'No'}</p>
+            <p><strong>Blood Pressure Medication:</strong> ${programContent.medicalScreening?.bloodPressureMedication || 'No'}</p>
+            <p><strong>Medical Supervision Needed:</strong> ${programContent.medicalScreening?.medicalSupervisionNeeded || 'No'}</p>
           </div>
         ` : ''}
       </div>
