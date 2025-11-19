@@ -17,6 +17,46 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Multi-location configuration
+const LOCATION_CONFIG = {
+  // Salem Location
+  'GjtINe5Nv5RwS5BVM9gY': {
+    name: 'Salem - Support System',
+    apiKey: process.env.GHL_API_KEY_SALEM || process.env.GHL_API_KEY,
+    fromEmail: 'programs@westcoaststrength.com',
+    fromName: 'West Coast Strength - Salem'
+  },
+  // Add more locations here
+  'LOCATION_ID_2': {
+    name: 'Portland Location',
+    apiKey: process.env.GHL_API_KEY_PORTLAND || process.env.GHL_API_KEY,
+    fromEmail: 'programs@westcoaststrength.com',
+    fromName: 'West Coast Strength - Portland'
+  },
+  'LOCATION_ID_3': {
+    name: 'Eugene Location',
+    apiKey: process.env.GHL_API_KEY_EUGENE || process.env.GHL_API_KEY,
+    fromEmail: 'programs@westcoaststrength.com',
+    fromName: 'West Coast Strength - Eugene'
+  }
+  // Add as many locations as needed
+};
+
+// Helper function to get location config
+function getLocationConfig(locationId) {
+  const config = LOCATION_CONFIG[locationId];
+  if (!config) {
+    console.warn(`No config found for location ${locationId}, using default`);
+    return {
+      name: 'West Coast Strength',
+      apiKey: process.env.GHL_API_KEY,
+      fromEmail: 'programs@westcoaststrength.com',
+      fromName: 'West Coast Strength'
+    };
+  }
+  return config;
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', service: 'PT Program Generator' });
@@ -50,8 +90,7 @@ app.post('/webhook/generate-program', async (req, res) => {
       hipLimitation: Array.isArray(req.body['Hip Limitation']) && req.body['Hip Limitation'].includes('Yes'),
       kneeLimitation: Array.isArray(req.body['Knee Limitation']) && req.body['Knee Limitation'].includes('Yes'),
       ankleLimitation: Array.isArray(req.body['Ankle Limitation']) && req.body['Ankle Limitation'].includes('Yes'),
-      otherLimitations: req.body['Other Limitations'] || '',
-      relationshipWithFood: req.body['Relationship with Food'] || 'healthy relationship'
+      otherLimitations: req.body['Other Limitations'] || ''
     };
     
     console.log('Parsed formData:', JSON.stringify(formData, null, 2));
@@ -104,7 +143,11 @@ async function generateAndSendProgram(contactId, locationId, formData) {
 
 // Fetch contact data from GHL
 async function fetchGHLContact(contactId, locationId) {
-  const apiKey = process.env.GHL_API_KEY;
+  // Get location-specific API key
+  const locationConfig = getLocationConfig(locationId);
+  const apiKey = locationConfig.apiKey;
+  
+  console.log(`Fetching contact from location: ${locationConfig.name}`);
   
   const response = await axios.get(
     `https://services.leadconnectorhq.com/contacts/${contactId}`,
@@ -126,7 +169,9 @@ async function fetchGHLContact(contactId, locationId) {
     email: contact.email,
     phone: contact.phone,
     customFields: contact.customField || {},
-    tags: contact.tags || []
+    tags: contact.tags || [],
+    locationId: locationId,
+    locationName: locationConfig.name
   };
 }
 
@@ -224,8 +269,7 @@ function buildPrompt(contactData, formData) {
     hipLimitation = false,
     kneeLimitation = false,
     ankleLimitation = false,
-    otherLimitations = '',
-    relationshipWithFood = 'healthy relationship'
+    otherLimitations = ''
   } = formData || {};
   
   // Build limitations summary
@@ -243,7 +287,7 @@ function buildPrompt(contactData, formData) {
     ? `MOVEMENT LIMITATIONS: ${limitations.join(', ')}. For each limitation, modify exercises to use pain-free alternatives or easier progressions. For example: shoulder limitations = use landmine press instead of overhead press; knee limitations = reduce squat depth or use leg press; lower back limitations = avoid heavy loaded spinal flexion/extension.`
     : 'No reported movement limitations.';
   
-  return `You are an expert personal trainer and nutritionist creating a fully customized training and nutrition program.
+  return `You are an expert personal trainer creating a fully customized training program.
 
 CLIENT INFORMATION:
 - Name: ${contactData.firstName} ${contactData.lastName}
@@ -262,10 +306,7 @@ PROGRAM REQUIREMENTS:
 
 ${limitationsText}
 
-NUTRITION CONTEXT:
-- Relationship with Food: ${relationshipWithFood}
-
-YOUR TASK: Generate ONE WEEK of training (repeated for ${duration} weeks) AND a detailed meal plan.
+YOUR TASK: Generate ONE WEEK of training (repeated for ${duration} weeks).
 
 Return in JSON format:
 
@@ -296,69 +337,15 @@ Return in JSON format:
     ]
   },
   "progressionNotes": "How to progress week to week (increase weight, reps, etc.)",
-  "generalNotes": "Important reminders, warm-up guidance, cool-down",
-  "mealPlan": {
-    "calorieTarget": "Calculate based on BMR and goal: fat loss = BMR x 1.2-1.3, muscle building = BMR x 1.4-1.5, maintenance = BMR x 1.3-1.4",
-    "macros": {
-      "protein": "Calculate grams and percentage",
-      "carbs": "Calculate grams and percentage", 
-      "fats": "Calculate grams and percentage"
-    },
-    "nutritionPhilosophy": "Brief paragraph addressing their relationship with food: ${relationshipWithFood}",
-    "mealSchedule": [
-      {
-        "meal": "Breakfast",
-        "time": "7:00 AM",
-        "foods": [
-          {
-            "item": "Food item",
-            "amount": "Serving size",
-            "calories": "Number",
-            "protein": "Number g",
-            "carbs": "Number g",
-            "fats": "Number g"
-          }
-        ],
-        "totalCalories": "Sum of all foods"
-      },
-      {
-        "meal": "Mid-Morning Snack",
-        "time": "10:00 AM",
-        "foods": []
-      },
-      {
-        "meal": "Lunch",
-        "time": "12:30 PM",
-        "foods": []
-      },
-      {
-        "meal": "Afternoon Snack",
-        "time": "3:00 PM",
-        "foods": []
-      },
-      {
-        "meal": "Dinner",
-        "time": "6:30 PM",
-        "foods": []
-      },
-      {
-        "meal": "Evening Snack (optional)",
-        "time": "8:30 PM",
-        "foods": []
-      }
-    ],
-    "mealPrepTips": "3-5 practical tips for preparing these meals",
-    "supplementation": "Optional supplement recommendations if appropriate"
-  }
+  "generalNotes": "Important reminders, warm-up guidance, cool-down"
 }
+            "amount": "Serving size",
 
 CRITICAL INSTRUCTIONS:
 1. Create ${daysPerWeek} distinct workouts that form a complete training split
 2. MODIFY exercises based on limitations - use safer alternatives, reduced ROM, or easier progressions
-3. Calculate precise calorie and macro targets based on their BMR (${bmr}) and goal (${programGoal})
-4. Provide DETAILED meal examples with specific portions and macros for each meal
-5. Address their relationship with food (${relationshipWithFood}) in the nutrition philosophy
-6. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+3. Include specific form cues and technique notes for each exercise
+4. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 // Generate PDF from HTML template
 async function generatePDF(contactData, programContent) {
@@ -507,143 +494,27 @@ function formatProgramHTML(contactData, programContent) {
     `;
   });
   
-  // Add Meal Plan Pages
-  if (programContent.mealPlan) {
-    const mp = programContent.mealPlan;
-    
-    // Meal Plan Overview Page
-    html += `
-      <div class="page">
-        <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
-        
-        <div class="page-header">
-          <div class="header-left">
-            <h1>WEST COAST STRENGTH</h1>
-            <h2>NUTRITION PLAN</h2>
-          </div>
-          <div class="header-right">
-            <p>TRAINER: ${programContent.trainerName || ''}</p>
-            <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
-          </div>
-        </div>
-        
-        <div class="core-concepts">
-          <h3>DAILY TARGETS:</h3>
-          <div class="core-concepts-content">
-            <p><strong>Total Calories:</strong> ${mp.calorieTarget} calories/day</p>
-            <p><strong>Protein:</strong> ${mp.macros.protein} | <strong>Carbs:</strong> ${mp.macros.carbs} | <strong>Fats:</strong> ${mp.macros.fats}</p>
-          </div>
-          
-          <h3 style="margin-top: 30px;">NUTRITION APPROACH:</h3>
-          <div class="core-concepts-content">
-            <p>${mp.nutritionPhilosophy}</p>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Detailed Meal Schedule Pages
-    if (mp.mealSchedule && mp.mealSchedule.length > 0) {
-      mp.mealSchedule.forEach(meal => {
-        html += `
-          <div class="page">
-            <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
-            
-            <div class="page-header">
-              <div class="header-left">
-                <h1>WEST COAST STRENGTH</h1>
-                <h2>${meal.meal.toUpperCase()} - ${meal.time}</h2>
-              </div>
-              <div class="header-right">
-                <p>TRAINER: ${programContent.trainerName || ''}</p>
-                <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
-              </div>
-            </div>
-            
-            <table class="workout-table">
-              <tr style="background-color: #f0f0f0;">
-                <td><strong>Food Item</strong></td>
-                <td><strong>Macros (P/C/F)</strong></td>
-              </tr>
-        `;
-        
-        if (meal.foods && meal.foods.length > 0) {
-          meal.foods.forEach(food => {
-            html += `
-              <tr>
-                <td>${food.item} - ${food.amount}</td>
-                <td>${food.protein}g / ${food.carbs}g / ${food.fats}g (${food.calories} cal)</td>
-              </tr>
-            `;
-          });
-          
-          html += `
-              <tr style="background-color: #E31E24; color: white;">
-                <td><strong>MEAL TOTAL</strong></td>
-                <td><strong>${meal.totalCalories} calories</strong></td>
-              </tr>
-          `;
-        }
-        
-        html += `
-            </table>
-          </div>
-        `;
-      });
-    }
-    
-    // Meal Prep Tips Page
-    if (mp.mealPrepTips || mp.supplementation) {
-      html += `
-        <div class="page">
-          <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
-          
-          <div class="page-header">
-            <div class="header-left">
-              <h1>WEST COAST STRENGTH</h1>
-              <h2>MEAL PREP & TIPS</h2>
-            </div>
-            <div class="header-right">
-              <p>TRAINER: ${programContent.trainerName || ''}</p>
-              <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
-            </div>
-          </div>
-          
-          <div class="core-concepts">
-            ${mp.mealPrepTips ? `
-              <h3>MEAL PREP TIPS:</h3>
-              <div class="core-concepts-content">
-                <p>${mp.mealPrepTips}</p>
-              </div>
-            ` : ''}
-            
-            ${mp.supplementation ? `
-              <h3 style="margin-top: 30px;">SUPPLEMENTATION:</h3>
-              <div class="core-concepts-content">
-                <p>${mp.supplementation}</p>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-    }
-  }
-  
   return html;
 }
 
 // Send program via email
 async function sendProgramEmail(contactData, pdfBuffer) {
+  // Get location-specific email config
+  const locationConfig = getLocationConfig(contactData.locationId);
+  
   const msg = {
     to: contactData.email,
-    from: process.env.FROM_EMAIL || 'programs@westcoaststrength.com',
+    from: {
+      email: locationConfig.fromEmail,
+      name: locationConfig.fromName
+    },
     subject: `Your Personalized Training Program - ${contactData.firstName}`,
-    text: `Hi ${contactData.firstName},\n\nYour customized training program is attached. Please review it carefully and reach out if you have any questions.\n\nLet's crush these goals!\n\nWest Coast Strength Team`,
+    text: `Hi ${contactData.firstName},\n\nYour customized training program from ${locationConfig.name} is attached. Please review it carefully and reach out if you have any questions.\n\nLet's crush these goals!\n\n${locationConfig.fromName}`,
     html: `
       <p>Hi ${contactData.firstName},</p>
-      <p>Your customized training program is attached. Please review it carefully and reach out if you have any questions.</p>
+      <p>Your customized training program from <strong>${locationConfig.name}</strong> is attached. Please review it carefully and reach out if you have any questions.</p>
       <p><strong>Let's crush these goals!</strong></p>
-      <p>West Coast Strength Team</p>
+      <p>${locationConfig.fromName}</p>
     `,
     attachments: [
       {
