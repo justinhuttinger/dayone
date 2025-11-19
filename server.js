@@ -50,7 +50,9 @@ function getClubByLocationId(locationId) {
   return {
     ...club,
     fromEmail: process.env.FROM_EMAIL || 'programs@westcoaststrength.com',
-    fromName: `West Coast Strength - ${club.clubName}`,
+    fromName: club.clubName.includes('West Coast Strength') 
+      ? club.clubName 
+      : `West Coast Strength - ${club.clubName}`,
     isDefault: false
   };
 }
@@ -95,21 +97,21 @@ app.post('/webhook/generate-program', async (req, res) => {
     const formData = {
       trainerName: req.body['Service Employee'] || '',
       programGoal: req.body['Program Goal'] || 'general fitness',
-      duration: (req.body['Duration'] || '8 weeks').replace(' weeks', ''),
-      daysPerWeek: (req.body['Days per Week'] || '4').replace(' days a week', '').replace(' day a week', ''),
+      duration: String(req.body['Duration (Weeks)'] || req.body['Duration'] || 8).replace(' weeks', ''),
+      daysPerWeek: String(req.body['Days Per Week'] || req.body['Days per Week'] || 4).replace(' days a week', '').replace(' day a week', ''),
       experienceLevel: (req.body['Experience Level'] || 'intermediate').toLowerCase(),
       equipment: req.body['Equipment'] || 'full gym',
-      weight: req.body['Weight'] || '',
+      weight: req.body['Weight (Lbs)'] || req.body['Weight'] || '',
       height: req.body['Height'] || '',
-      bodyFat: (req.body['Body Fat'] || '').replace('%', ''),
+      bodyFat: String(req.body['Body Fat (%)'] || req.body['Body Fat'] || '').replace('%', ''),
       bmr: req.body['BMR'] || '',
-      neckLimitation: Array.isArray(req.body['Neck Limitation']) && req.body['Neck Limitation'].includes('Yes'),
-      shoulderLimitation: Array.isArray(req.body['Shoulder Limitation']) && req.body['Shoulder Limitation'].includes('Yes'),
-      elbowWristLimitation: Array.isArray(req.body['Elbow Wrist Limitation']) && req.body['Elbow Wrist Limitation'].includes('Yes'),
-      lowerBackLimitation: Array.isArray(req.body['Lower Back Limitation']) && req.body['Lower Back Limitation'].includes('Yes'),
-      hipLimitation: Array.isArray(req.body['Hip Limitation']) && req.body['Hip Limitation'].includes('Yes'),
-      kneeLimitation: Array.isArray(req.body['Knee Limitation']) && req.body['Knee Limitation'].includes('Yes'),
-      ankleLimitation: Array.isArray(req.body['Ankle Limitation']) && req.body['Ankle Limitation'].includes('Yes'),
+      neckLimitation: req.body['Neck Limitation'] === 'Yes' || (Array.isArray(req.body['Neck Limitation']) && req.body['Neck Limitation'].includes('Yes')),
+      shoulderLimitation: req.body['Shoulder Limitation'] === 'Yes' || (Array.isArray(req.body['Shoulder Limitation']) && req.body['Shoulder Limitation'].includes('Yes')),
+      elbowWristLimitation: req.body['Elbow Wrist Limitation'] === 'Yes' || (Array.isArray(req.body['Elbow Wrist Limitation']) && req.body['Elbow Wrist Limitation'].includes('Yes')),
+      lowerBackLimitation: req.body['Lower Back Limitation'] === 'Yes' || (Array.isArray(req.body['Lower Back Limitation']) && req.body['Lower Back Limitation'].includes('Yes')),
+      hipLimitation: req.body['Hip Limitation'] === 'Yes' || (Array.isArray(req.body['Hip Limitation']) && req.body['Hip Limitation'].includes('Yes')),
+      kneeLimitation: req.body['Knee Limitation'] === 'Yes' || (Array.isArray(req.body['Knee Limitation']) && req.body['Knee Limitation'].includes('Yes')),
+      ankleLimitation: req.body['Ankle Limitation'] === 'Yes' || (Array.isArray(req.body['Ankle Limitation']) && req.body['Ankle Limitation'].includes('Yes')),
       otherLimitations: req.body['Other Limitations'] || ''
     };
     
