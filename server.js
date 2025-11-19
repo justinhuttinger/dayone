@@ -288,7 +288,8 @@ Return in JSON format:
             "sets": "3",
             "reps": "8-10",
             "rest": "90 seconds",
-            "notes": "Form cues, modifications for limitations if applicable"
+            "notes": "Form cues, modifications for limitations if applicable",
+            "videoUrl": "Optional: URL to instructional video (leave empty if not available)"
           }
         ]
       }
@@ -478,9 +479,23 @@ function formatProgramHTML(contactData, programContent) {
     // Add exercises as table rows
     workout.exercises.forEach(exercise => {
       const setsReps = `${exercise.sets} x ${exercise.reps}`;
+      const notes = exercise.notes || '';
+      const videoUrl = exercise.videoUrl || '';
+      
+      // Generate QR code if video URL exists
+      let qrCodeHTML = '';
+      if (videoUrl) {
+        // QR code API - generates QR code image from URL
+        qrCodeHTML = `<br><img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(videoUrl)}" alt="Video QR" style="margin-top: 5px;">`;
+      }
+      
       html += `
         <tr>
-          <td>${exercise.name}</td>
+          <td>
+            <strong>${exercise.name}</strong>
+            ${notes ? `<br><span style="font-size: 11px; color: #666;">${notes}</span>` : ''}
+            ${qrCodeHTML}
+          </td>
           <td>${setsReps}</td>
         </tr>
       `;
