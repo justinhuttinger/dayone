@@ -396,18 +396,21 @@ IMPORTANT: If there are movement limitations, you MUST intelligently modify exer
 ${medicalScreening.length > 0 ? 'MEDICAL CONSIDERATIONS: This client has medical screening alerts. Keep intensity moderate, avoid high-impact movements, emphasize proper breathing and form, and include longer rest periods.\n' : ''}
 
 Create a comprehensive training program with:
-1. A program overview explaining the training approach and how it addresses their goal${fitnessGoals ? ` (specifically: ${fitnessGoals})` : ''}
+1. A detailed program overview with separate sections for explanation, progression, terminology, principles, and notes
 2. ${daysPerWeek} distinct workouts per week (e.g., Upper/Lower split, Push/Pull/Legs, etc.)
-3. Each workout should have 5-8 exercises with specific sets, reps, and rest periods
+3. Each workout should have 5-8 exercises with specific sets, reps, and exercise variations
 4. Include form cues and technique notes for each exercise
-5. Progression guidelines for advancing week to week
+5. Provide 1-2 alternative exercise variations for each exercise
 ${currentWorkoutRoutine ? `6. Consider their current routine (${currentWorkoutRoutine}) when designing progression` : ''}
 
 Return your response as a JSON object with this EXACT structure:
 
 {
-  "programOverview": "Brief explanation of the training approach and split (2-3 sentences)",
-  ${inbodyText ? '"inbodyStats": { "weight": "' + weight + '", "height": "' + height + '", "bodyFat": "' + bodyFat + '", "bmr": "' + bmr + '" },' : ''}
+  "basicExplanation": "2-3 sentences explaining what this program is, the training split used, and how it will help them reach their goal",
+  "progressionNotes": "How to progress week to week - when to increase weight, add reps, etc. Be specific about progression protocol",
+  "terminology": "Define key terms used in the program (e.g., superset, RPE, tempo, AMRAP, etc.) that the client needs to understand",
+  "principles": "The core training principles this program is built on (e.g., progressive overload, compound movements first, etc.)",
+  "importantNotes": "Safety reminders, warm-up guidance, rest day recommendations, and any other critical information",
   "weekTemplate": {
     "workouts": [
       {
@@ -419,16 +422,13 @@ Return your response as a JSON object with this EXACT structure:
             "name": "Exercise name (modified for any limitations)",
             "sets": "3",
             "reps": "8-10",
-            "rest": "90 seconds",
             "notes": "Form cues, modifications for limitations if applicable",
-            "videoUrl": "Optional: URL to instructional video (leave empty if not available)"
+            "variations": "1-2 alternative exercises that target the same muscles (e.g., 'DB Press, Machine Press')"
           }
         ]
       }
     ]
-  },
-  "progressionNotes": "How to progress week to week (increase weight, reps, etc.)",
-  "generalNotes": "Important reminders, warm-up guidance, cool-down"
+  }
 }
 
 CRITICAL INSTRUCTIONS:
@@ -436,7 +436,8 @@ CRITICAL INSTRUCTIONS:
 2. MODIFY exercises based on limitations - use safer alternatives, reduced ROM, or easier progressions
 3. ${medicalScreening.length > 0 ? 'Use CONSERVATIVE programming due to medical screening alerts - moderate intensity, avoid high-impact' : 'Include specific form cues and technique notes for each exercise'}
 4. ${biggestObstacles ? `Address their biggest obstacle: ${biggestObstacles}` : 'Focus on sustainable, progressive programming'}
-5. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+5. ALWAYS include 1-2 exercise variations for each exercise in the "variations" field
+6. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 
 // Generate PDF from HTML template
@@ -496,7 +497,7 @@ function formatProgramHTML(contactData, programContent) {
   
   let html = '';
   
-  // Page 1: Overview/Core Concepts with InBody Stats and Medical Screening
+  // Page 1: Program Overview
   html += `
     <div class="page">
       <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
@@ -504,7 +505,7 @@ function formatProgramHTML(contactData, programContent) {
       <div class="page-header">
         <div class="header-left">
           <h1>WEST COAST STRENGTH</h1>
-          <h2>TRAINING PROGRAM</h2>
+          <h2>PROGRAM OVERVIEW</h2>
         </div>
         <div class="header-right">
           <p>TRAINER: ${programContent.trainerName || ''}</p>
@@ -513,31 +514,30 @@ function formatProgramHTML(contactData, programContent) {
       </div>
       
       <div class="core-concepts">
-        <h3>CORE CONCEPTS:</h3>
+        <h3>BASIC EXPLANATION:</h3>
         <div class="core-concepts-content">
-          ${programContent.programOverview ? `<p>${programContent.programOverview}</p>` : ''}
-          ${programContent.progressionNotes ? `<p><strong>Progression:</strong> ${programContent.progressionNotes}</p>` : ''}
-          ${programContent.generalNotes ? `<p><strong>Important Notes:</strong> ${programContent.generalNotes}</p>` : ''}
+          <p>${programContent.basicExplanation || programContent.programOverview || ''}</p>
         </div>
         
-        ${programContent.inbodyStats ? `
-          <h3 style="margin-top: 30px;">INBODY METRICS:</h3>
-          <div class="core-concepts-content">
-            <p><strong>Weight:</strong> ${programContent.inbodyStats.weight} lbs | <strong>Height:</strong> ${programContent.inbodyStats.height} inches</p>
-            <p><strong>Body Fat:</strong> ${programContent.inbodyStats.bodyFat}% | <strong>Basal Metabolic Rate:</strong> ${programContent.inbodyStats.bmr} calories/day</p>
-          </div>
-        ` : ''}
+        <h3 style="margin-top: 20px;">PROGRESSION:</h3>
+        <div class="core-concepts-content">
+          <p>${programContent.progressionNotes || ''}</p>
+        </div>
         
-        ${programContent.medicalScreening || formData ? `
-          <h3 style="margin-top: 30px;">MEDICAL SCREENING:</h3>
-          <div class="core-concepts-content" style="font-size: 11px;">
-            <p><strong>Heart Condition:</strong> ${programContent.medicalScreening?.heartCondition || 'No'}</p>
-            <p><strong>Chest Pain During Activity:</strong> ${programContent.medicalScreening?.chestPain || 'No'}</p>
-            <p><strong>Bone/Joint Problem:</strong> ${programContent.medicalScreening?.boneJointProblem || 'No'}</p>
-            <p><strong>Blood Pressure Medication:</strong> ${programContent.medicalScreening?.bloodPressureMedication || 'No'}</p>
-            <p><strong>Medical Supervision Needed:</strong> ${programContent.medicalScreening?.medicalSupervisionNeeded || 'No'}</p>
-          </div>
-        ` : ''}
+        <h3 style="margin-top: 20px;">TERMINOLOGY:</h3>
+        <div class="core-concepts-content">
+          <p>${programContent.terminology || ''}</p>
+        </div>
+        
+        <h3 style="margin-top: 20px;">PRINCIPLES:</h3>
+        <div class="core-concepts-content">
+          <p>${programContent.principles || ''}</p>
+        </div>
+        
+        <h3 style="margin-top: 20px;">IMPORTANT NOTES:</h3>
+        <div class="core-concepts-content">
+          <p>${programContent.generalNotes || programContent.importantNotes || ''}</p>
+        </div>
       </div>
     </div>
   `;
@@ -563,34 +563,44 @@ function formatProgramHTML(contactData, programContent) {
         </div>
         
         <table class="workout-table">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 8px; border-bottom: 2px solid #E31E24;">EXERCISE</th>
+              <th style="text-align: center; padding: 8px; border-bottom: 2px solid #E31E24; width: 100px;">SETS x REPS</th>
+              <th style="text-align: left; padding: 8px; border-bottom: 2px solid #E31E24; width: 180px;">VARIATIONS</th>
+            </tr>
+          </thead>
+          <tbody>
     `;
     
     // Add exercises as table rows
     workout.exercises.forEach(exercise => {
       const setsReps = `${exercise.sets} x ${exercise.reps}`;
       const notes = exercise.notes || '';
+      const variations = exercise.variations || exercise.variation || '';
       const videoUrl = exercise.videoUrl || '';
       
       // Generate QR code if video URL exists
       let qrCodeHTML = '';
       if (videoUrl) {
-        // QR code API - generates QR code image from URL
         qrCodeHTML = `<br><img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(videoUrl)}" alt="Video QR" style="margin-top: 5px;">`;
       }
       
       html += `
         <tr>
-          <td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd;">
             <strong>${exercise.name}</strong>
             ${notes ? `<br><span style="font-size: 11px; color: #666;">${notes}</span>` : ''}
             ${qrCodeHTML}
           </td>
-          <td>${setsReps}</td>
+          <td style="text-align: center; padding: 8px; border-bottom: 1px solid #ddd;">${setsReps}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 11px;">${variations}</td>
         </tr>
       `;
     });
     
     html += `
+          </tbody>
         </table>
       </div>
     `;
