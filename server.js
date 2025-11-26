@@ -450,7 +450,8 @@ CRITICAL INSTRUCTIONS:
 3. ${medicalScreening.length > 0 ? 'Use CONSERVATIVE programming due to medical screening alerts - moderate intensity, avoid high-impact' : 'Include specific form cues and technique notes for each exercise'}
 4. ${biggestObstacles ? `Address their biggest obstacle: ${biggestObstacles}` : 'Focus on sustainable, progressive programming'}
 5. ALWAYS include 1-2 exercise variations for each exercise in the "variations" field
-6. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+6. NEVER mention or recommend consulting a physical therapist, doctor, physician, medical professional, or healthcare provider. Simply provide exercise modifications and alternatives instead.
+7. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 
 // Generate PDF from HTML template
