@@ -495,6 +495,15 @@ function formatProgramHTML(contactData, programContent) {
     return `<div class="program-text">${programContent.programText || 'Program content'}</div>`;
   }
   
+  // Helper function to bold terminology words (format: "Term: definition" or "Term - definition")
+  function formatTerminology(text) {
+    if (!text) return '';
+    // Bold words before colons or dashes that start definitions
+    return text
+      .replace(/([A-Za-z\s]+):/g, '<strong>$1</strong>:')
+      .replace(/([A-Za-z]+)\s*-\s+/g, '<strong>$1</strong> - ');
+  }
+  
   let html = '';
   
   // Page 1: Program Overview
@@ -502,7 +511,7 @@ function formatProgramHTML(contactData, programContent) {
     <div class="page">
       <img src="data:image/png;base64,{{logoBase64}}" class="logo-image" alt="WCS Logo">
       
-      <div class="page-header">
+      <div class="page-header" style="margin-bottom: 10px;">
         <div class="header-left">
           <h1>WEST COAST STRENGTH</h1>
           <h2>PROGRAM OVERVIEW</h2>
@@ -513,30 +522,30 @@ function formatProgramHTML(contactData, programContent) {
         </div>
       </div>
       
-      <div class="core-concepts">
-        <h3>BASIC EXPLANATION:</h3>
-        <div class="core-concepts-content">
-          <p>${programContent.basicExplanation || programContent.programOverview || ''}</p>
+      <div class="core-concepts" style="margin-top: 5px;">
+        <h3 style="margin-bottom: 3px;">BASIC EXPLANATION:</h3>
+        <div class="core-concepts-content" style="margin-bottom: 10px;">
+          <p style="margin: 0;">${programContent.basicExplanation || programContent.programOverview || ''}</p>
         </div>
         
-        <h3 style="margin-top: 20px;">PROGRESSION:</h3>
-        <div class="core-concepts-content">
-          <p>${programContent.progressionNotes || ''}</p>
+        <h3 style="margin-bottom: 3px;">PROGRESSION:</h3>
+        <div class="core-concepts-content" style="margin-bottom: 10px;">
+          <p style="margin: 0;">${programContent.progressionNotes || ''}</p>
         </div>
         
-        <h3 style="margin-top: 20px;">TERMINOLOGY:</h3>
-        <div class="core-concepts-content">
-          <p>${programContent.terminology || ''}</p>
+        <h3 style="margin-bottom: 3px;">TERMINOLOGY:</h3>
+        <div class="core-concepts-content" style="margin-bottom: 10px;">
+          <p style="margin: 0;">${formatTerminology(programContent.terminology) || ''}</p>
         </div>
         
-        <h3 style="margin-top: 20px;">PRINCIPLES:</h3>
-        <div class="core-concepts-content">
-          <p>${programContent.principles || ''}</p>
+        <h3 style="margin-bottom: 3px;">PRINCIPLES:</h3>
+        <div class="core-concepts-content" style="margin-bottom: 10px;">
+          <p style="margin: 0;">${programContent.principles || ''}</p>
         </div>
         
-        <h3 style="margin-top: 20px;">IMPORTANT NOTES:</h3>
-        <div class="core-concepts-content">
-          <p>${programContent.generalNotes || programContent.importantNotes || ''}</p>
+        <h3 style="margin-bottom: 3px;">IMPORTANT NOTES:</h3>
+        <div class="core-concepts-content" style="margin-bottom: 10px;">
+          <p style="margin: 0;">${programContent.importantNotes || programContent.generalNotes || ''}</p>
         </div>
       </div>
     </div>
@@ -562,14 +571,7 @@ function formatProgramHTML(contactData, programContent) {
           </div>
         </div>
         
-        <table class="workout-table">
-          <thead>
-            <tr>
-              <th style="text-align: left; padding: 8px; border-bottom: 2px solid #E31E24;">EXERCISE</th>
-              <th style="text-align: center; padding: 8px; border-bottom: 2px solid #E31E24; width: 100px;">SETS x REPS</th>
-              <th style="text-align: left; padding: 8px; border-bottom: 2px solid #E31E24; width: 180px;">VARIATIONS</th>
-            </tr>
-          </thead>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
           <tbody>
     `;
     
@@ -588,13 +590,13 @@ function formatProgramHTML(contactData, programContent) {
       
       html += `
         <tr>
-          <td style="padding: 8px; border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px; border: 1px solid #000;">
             <strong>${exercise.name}</strong>
             ${notes ? `<br><span style="font-size: 11px; color: #666;">${notes}</span>` : ''}
             ${qrCodeHTML}
           </td>
-          <td style="text-align: center; padding: 8px; border-bottom: 1px solid #ddd;">${setsReps}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 11px;">${variations}</td>
+          <td style="text-align: center; padding: 8px; border: 1px solid #000; width: 100px;">${setsReps}</td>
+          <td style="padding: 8px; border: 1px solid #000; width: 180px; font-size: 11px;">${variations}</td>
         </tr>
       `;
     });
