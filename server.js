@@ -136,7 +136,11 @@ app.post('/webhook/generate-program', async (req, res) => {
       currentWorkoutRoutine: req.body['What is Your Current Workout Routine?'] || '',
       followsDietPlan: req.body['Do You Follow a Diet / Meal Plan?'] || '',
       biggestObstacles: req.body['What are your Biggest Obstacles?'] || '',
-      wouldHelpMost: req.body['What Would Help You the Most?'] || ''
+      wouldHelpMost: req.body['What Would Help You the Most?'] || '',
+      
+      // Additional Client Info
+      gender: req.body['Gender'] || req.body['contact.gender'] || '',
+      trainerNotes: req.body['contact.pt_notes'] || req.body['PT Notes'] || ''
     };
     
     console.log('📝 Parsed formData:', JSON.stringify(formData, null, 2));
@@ -326,7 +330,9 @@ function buildPrompt(contactData, formData) {
     currentWorkoutRoutine,
     followsDietPlan,
     biggestObstacles,
-    wouldHelpMost
+    wouldHelpMost,
+    gender,
+    trainerNotes
   } = formData;
   
   // Build limitations array
@@ -374,16 +380,23 @@ function buildPrompt(contactData, formData) {
     ? `\nCLIENT BACKGROUND:\n${clientContext.join('\n')}`
     : '';
   
+  // Build trainer notes section
+  const trainerNotesText = trainerNotes
+    ? `\n⭐ TRAINER NOTES (IMPORTANT - USE THESE TO CUSTOMIZE THE PROGRAM):\n${trainerNotes}\nYou MUST incorporate these notes into the program design. If the client loves certain exercises, include them. If they hate certain exercises, avoid them or use alternatives.`
+    : '';
+  
   return `You are an expert personal trainer creating a ${duration}-week training program for ${contactData.firstName}.
 
 CLIENT INFO:
 - Name: ${contactData.firstName} ${contactData.lastName}
+${gender ? `- Gender: ${gender}` : ''}
 - Experience Level: ${experienceLevel}
 - Available Equipment: ${equipment}
 - Training Days Per Week: ${daysPerWeek}
 - Primary Goal: ${programGoal}
 ${inbodyText}
 ${clientContextText}
+${trainerNotesText}
 
 ${limitationsText}
 ${medicalText}
@@ -572,6 +585,13 @@ function formatProgramHTML(contactData, programContent) {
         </div>
         
         <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 8px; border: 1px solid #000;">EXERCISE</th>
+              <th style="text-align: center; padding: 8px; border: 1px solid #000; width: 100px;"></th>
+              <th style="text-align: left; padding: 8px; border: 1px solid #000; width: 180px;">VARIATIONS</th>
+            </tr>
+          </thead>
           <tbody>
     `;
     
