@@ -421,7 +421,7 @@ Return your response as a JSON object with this EXACT structure:
 {
   "basicExplanation": "2-3 sentences explaining what this program is, the training split used, and how it will help them reach their goal",
   "progressionNotes": "How to progress week to week - when to increase weight, add reps, etc. Be specific about progression protocol",
-  "terminology": "Define key terms used in the program (e.g., superset, RPE, tempo, AMRAP, etc.) that the client needs to understand",
+  "terminology": "Define ONLY terms that are actually used in this program's exercises and notes. Every term defined here MUST appear somewhere in the workout exercises or notes. Do not define terms that aren't used.",
   "principles": "The core training principles this program is built on (e.g., progressive overload, compound movements first, etc.)",
   "importantNotes": "Safety reminders, warm-up guidance, rest day recommendations, and any other critical information",
   "weekTemplate": {
@@ -458,7 +458,8 @@ CRITICAL INSTRUCTIONS:
    - NEVER jump between muscle groups - complete ALL exercises for a muscle group before moving to the next
    - Example: Do ALL back exercises first, THEN all bicep exercises. Never go back→bicep→back
    - Example: Do ALL chest exercises first, THEN all tricep exercises. Never go chest→tricep→chest
-8. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+8. TERMINOLOGY MUST MATCH PROGRAM - Only define terms in the terminology section that are actually used in the exercises or notes. If you use "superset" in the program, define it. If you don't use "AMRAP", don't define it.
+9. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 
 // Generate PDF from HTML template
