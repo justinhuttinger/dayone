@@ -451,7 +451,14 @@ CRITICAL INSTRUCTIONS:
 4. ${biggestObstacles ? `Address their biggest obstacle: ${biggestObstacles}` : 'Focus on sustainable, progressive programming'}
 5. ALWAYS include 1-2 exercise variations for each exercise in the "variations" field
 6. NEVER mention or recommend consulting a physical therapist, doctor, physician, medical professional, or healthcare provider. Simply provide exercise modifications and alternatives instead.
-7. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+7. EXERCISE ORDER IS CRITICAL - Follow this structure for each workout:
+   - Start with the most demanding compound lifts that use large muscle groups (squats, deadlifts, bench press, rows, overhead press)
+   - Then move to secondary compound movements
+   - Finish with isolation/accessory exercises for smaller muscles
+   - NEVER jump between muscle groups - complete ALL exercises for a muscle group before moving to the next
+   - Example: Do ALL back exercises first, THEN all bicep exercises. Never go back→bicep→back
+   - Example: Do ALL chest exercises first, THEN all tricep exercises. Never go chest→tricep→chest
+8. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 
 // Generate PDF from HTML template
