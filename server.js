@@ -140,7 +140,16 @@ app.post('/webhook/generate-program', async (req, res) => {
       
       // Additional Client Info
       gender: req.body['Gender'] || req.body['contact.gender'] || '',
-      trainerNotes: req.body['contact.pt_notes'] || req.body['PT Notes'] || ''
+      trainerNotes: req.body['contact.pt_notes'] || req.body['PT Notes'] || '',
+      
+      // Day Focus (optional - only filled if specified)
+      day1Focus: req.body['Day 1 Focus'] || '',
+      day2Focus: req.body['Day Two Focus'] || '',
+      day3Focus: req.body['Day Three Focus'] || '',
+      day4Focus: req.body['Day Four Focus'] || '',
+      day5Focus: req.body['Day Five Focus'] || '',
+      day6Focus: req.body['Day Six Focus'] || '',
+      day7Focus: req.body['Day Seven Focus'] || ''
     };
     
     console.log('📝 Parsed formData:', JSON.stringify(formData, null, 2));
@@ -332,7 +341,14 @@ function buildPrompt(contactData, formData) {
     biggestObstacles,
     wouldHelpMost,
     gender,
-    trainerNotes
+    trainerNotes,
+    day1Focus,
+    day2Focus,
+    day3Focus,
+    day4Focus,
+    day5Focus,
+    day6Focus,
+    day7Focus
   } = formData;
   
   // Build limitations array
@@ -385,6 +401,20 @@ function buildPrompt(contactData, formData) {
     ? `\n⭐ TRAINER NOTES (IMPORTANT - USE THESE TO CUSTOMIZE THE PROGRAM):\n${trainerNotes}\nYou MUST incorporate these notes into the program design. If the client loves certain exercises, include them. If they hate certain exercises, avoid them or use alternatives.`
     : '';
   
+  // Build day focus section (only include days that have a focus specified)
+  const dayFocuses = [];
+  if (day1Focus) dayFocuses.push(`Day 1: ${day1Focus}`);
+  if (day2Focus) dayFocuses.push(`Day 2: ${day2Focus}`);
+  if (day3Focus) dayFocuses.push(`Day 3: ${day3Focus}`);
+  if (day4Focus) dayFocuses.push(`Day 4: ${day4Focus}`);
+  if (day5Focus) dayFocuses.push(`Day 5: ${day5Focus}`);
+  if (day6Focus) dayFocuses.push(`Day 6: ${day6Focus}`);
+  if (day7Focus) dayFocuses.push(`Day 7: ${day7Focus}`);
+  
+  const dayFocusText = dayFocuses.length > 0
+    ? `\n🎯 DAILY FOCUS (CRITICAL - EACH WORKOUT MUST FOLLOW THIS FOCUS):\n${dayFocuses.join('\n')}\nYou MUST design each workout day to align with the specified focus. The workout title and exercises should directly reflect this focus.`
+    : '';
+  
   return `You are an expert personal trainer creating a ${duration}-week training program for ${contactData.firstName}.
 
 CLIENT INFO:
@@ -397,6 +427,7 @@ ${gender ? `- Gender: ${gender}` : ''}
 ${inbodyText}
 ${clientContextText}
 ${trainerNotesText}
+${dayFocusText}
 
 ${limitationsText}
 ${medicalText}
@@ -451,7 +482,7 @@ CRITICAL INSTRUCTIONS:
 4. ${biggestObstacles ? `Address their biggest obstacle: ${biggestObstacles}` : 'Focus on sustainable, progressive programming'}
 5. ALWAYS include 1-2 exercise variations for each exercise in the "variations" field
 6. NEVER mention or recommend consulting a physical therapist, doctor, physician, medical professional, or healthcare provider. Simply provide exercise modifications and alternatives instead.
-7. If programming Deadlift, MUST be first always, never program a deadlift to come after the first exercise.
+7. Never put Deadlifts anywhere besides first or second in a workout.
 8. EXERCISE ORDER IS CRITICAL - Follow this structure for each workout:
    - Start with the most demanding compound lifts that use large muscle groups (squats, deadlifts, bench press, rows, overhead press)
    - Then move to secondary compound movements
