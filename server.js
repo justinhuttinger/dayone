@@ -293,6 +293,7 @@ async function generateAndSendProgram(contactId, club, formData) {
     // Step 1: Fetch contact data from GHL
     const contactData = await fetchGHLContact(contactId, club);
     console.log(`👤 Fetched contact: ${contactData.name} (${contactData.email})`);
+    console.log(`📋 Custom fields in contactData:`, JSON.stringify(contactData.customFields, null, 2));
     
     // Step 2: Generate program with Claude AI
     const programContent = await generateProgramWithAI(contactData, formData);
