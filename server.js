@@ -274,8 +274,11 @@ app.post('/webhook/generate-program', async (req, res) => {
       success: true
     });
     
+    // Get ABC Member ID from webhook (where field names are available)
+    const abcMemberId = req.body['ABC Member ID'];
+    
     // Process ASYNCHRONOUSLY in background
-    generateAndSendProgram(contactId, club, formData).catch(err => {
+    generateAndSendProgram(contactId, club, formData, abcMemberId).catch(err => {
       console.error('Background generation error:', err);
     });
     
@@ -286,7 +289,7 @@ app.post('/webhook/generate-program', async (req, res) => {
 });
 
 // Main program generation function
-async function generateAndSendProgram(contactId, club, formData) {
+async function generateAndSendProgram(contactId, club, formData, abcMemberId) {
   try {
     console.log(`🚀 Starting program generation for contact: ${contactId} at ${club.clubName}`);
     
@@ -325,14 +328,7 @@ async function generateAndSendProgram(contactId, club, formData) {
     
     // Step 8: Upload to ABC Financial if member ID exists
     console.log('🔍 Checking for ABC Member ID...');
-    console.log('Available custom fields:', Object.keys(contactData.customFields));
-    
-    const abcMemberId = contactData.customFields['ABC Member ID'] 
-                     || contactData.customFields['abc_member_id']
-                     || contactData.customFields['ABC_Member_ID']
-                     || contactData.customFields['abcMemberId'];
-    
-    console.log('ABC Member ID found:', abcMemberId);
+    console.log('ABC Member ID:', abcMemberId);
     
     if (abcMemberId && club.clubNumber) {
       try {
@@ -343,7 +339,7 @@ async function generateAndSendProgram(contactId, club, formData) {
       }
     } else {
       if (!abcMemberId) {
-        console.log('ℹ️  Skipping ABC upload - no ABC Member ID in custom fields');
+        console.log('ℹ️  Skipping ABC upload - no ABC Member ID in webhook data');
       } else {
         console.log('ℹ️  Skipping ABC upload - no club number configured');
       }
@@ -376,8 +372,17 @@ async function fetchGHLContact(contactId, club) {
   
   const contact = response.data.contact;
   
-  // Custom fields can be in customField or customFields
-  const customFields = contact.customFields || contact.customField || {};
+  // Custom fields come as an array of {id, value} objects
+  // We need to convert them to a key-value object
+  const customFieldsArray = contact.customFields || contact.customField || [];
+  const customFields = {};
+  
+  // Convert array to object using field IDs as keys
+  customFieldsArray.forEach(field => {
+    if (field.id && field.value !== undefined) {
+      customFields[field.id] = field.value;
+    }
+  });
   
   console.log('📋 Contact custom fields:', JSON.stringify(customFields, null, 2));
   
@@ -389,6 +394,7 @@ async function fetchGHLContact(contactId, club) {
     email: contact.email,
     phone: contact.phone,
     customFields: customFields,
+    customFieldsArray: customFieldsArray, // Keep the array too for reference
     tags: contact.tags || [],
     locationId: club.ghlLocationId,
     locationName: club.clubName,
@@ -721,7 +727,7 @@ function formatProgramHTML(contactData, programContent) {
           <h1>WEST COAST STRENGTH</h1>
           <h2>PROGRAM OVERVIEW</h2>
         </div>
-        <div class="header-right" style="padding-top: 8px;">
+        <div class="header-right" style="padding-top: 30px;">
           <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
         </div>
       </div>
@@ -769,7 +775,7 @@ function formatProgramHTML(contactData, programContent) {
             <h1>WEST COAST STRENGTH</h1>
             <h2>DAY ${workout.day} - ${workout.title.toUpperCase()}</h2>
           </div>
-          <div class="header-right" style="padding-top: 8px;">
+          <div class="header-right" style="padding-top: 30px;">
             <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
           </div>
         </div>
