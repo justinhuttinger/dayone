@@ -13,12 +13,11 @@ app.use(express.json());
 // Serve static PDF files from /pdfs directory
 app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
 
-// Temporary storage for PDF URLs (in production, use Redis or similar)
-const pdfUrlCache = new Map();
-
-// Store the most recent PDF info for the success page
+// Track the most recent PDF generated
+// In practice, trainers submit forms sequentially, not simultaneously
 let lastGeneratedPdf = {
   contactId: null,
+  contactName: null,
   fileName: null,
   timestamp: null
 };
@@ -86,8 +85,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Success redirect page - shows the most recently generated PDF
+// Success redirect page - shows most recent PDF with contact name
 app.get('/program-success', (req, res) => {
+  
   if (!lastGeneratedPdf.fileName || !lastGeneratedPdf.timestamp) {
     return res.send(`
       <html>
@@ -96,44 +96,45 @@ app.get('/program-success', (req, res) => {
           <h1>⏳ Generating Program...</h1>
           <p>Your personalized training program is being generated.</p>
           <p style="color: #666; font-size: 14px;">This may take 20-40 seconds...</p>
-          <p id="timer" style="color: #E31E24; font-size: 18px; margin-top: 20px;"></p>
+          <p id="timer" style="color: #E31E24; font-size: 18px; margin-top: 20px;">0s elapsed</p>
           <script>
             let seconds = 0;
             const maxSeconds = 90;
             
-            // Update timer
-            setInterval(() => {
-              seconds += 2;
+            // Update timer immediately and every 1 second
+            const timerInterval = setInterval(() => {
+              seconds++;
               document.getElementById('timer').textContent = seconds + 's elapsed';
               
               if (seconds >= maxSeconds) {
+                clearInterval(timerInterval);
                 document.body.innerHTML = '<h1>✅ Program Sent!</h1><p>Your training program has been emailed to the client.</p><p style="color: #666; font-size: 14px;">If you need to access it, check the client\\'s email or GHL contact files.</p>';
               }
-            }, 2000);
+            }, 1000);
             
-            // Auto-refresh every 2 seconds to check if PDF is ready
+            // Auto-refresh every 3 seconds to check if PDF is ready
             setTimeout(() => {
               if (seconds < maxSeconds) {
                 window.location.reload();
               }
-            }, 2000);
+            }, 3000);
           </script>
         </body>
       </html>
     `);
   }
   
-  // Check if PDF is recent (within last 2 minutes)
+  // Check if PDF is recent (within last 5 minutes)
   const age = Date.now() - lastGeneratedPdf.timestamp;
-  const twoMinutes = 2 * 60 * 1000;
+  const fiveMinutes = 5 * 60 * 1000;
   
-  if (age > twoMinutes) {
+  if (age > fiveMinutes) {
     return res.send(`
       <html>
         <head><title>Program Generated</title></head>
         <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
           <h1>✅ Program Generated!</h1>
-          <p>Your personalized training program has been emailed to the client.</p>
+          <p>The training program has been emailed to the client.</p>
           <p style="color: #666; font-size: 14px; margin-top: 30px;">The direct link has expired. Please check the client's email or contact files in GHL.</p>
         </body>
       </html>
@@ -149,13 +150,14 @@ app.get('/program-success', (req, res) => {
         <meta http-equiv="refresh" content="1;url=${pdfUrl}">
       </head>
       <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-        <h1>✅ Your Program is Ready!</h1>
-        <p>Opening your personalized training program...</p>
+        <h1>✅ Program Ready!</h1>
+        <p style="font-size: 20px; margin: 20px 0;"><strong>${lastGeneratedPdf.contactName}</strong></p>
+        <p>Opening training program...</p>
         <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24; font-weight: bold;">click here</a></p>
         <script>
           setTimeout(() => {
             window.location.href = "${pdfUrl}";
-          }, 500);
+          }, 1000);
         </script>
       </body>
     </html>
@@ -796,12 +798,15 @@ async function savePDFToDisk(contactId, pdfBuffer, contactData) {
     // Save PDF to disk
     await fs.writeFile(filepath, pdfBuffer);
     
-    // Update the lastGeneratedPdf tracker
+    // Track the most recent PDF
     lastGeneratedPdf = {
       contactId: contactId,
+      contactName: `${contactData.firstName} ${contactData.lastName}`,
       fileName: filename,
       timestamp: timestamp
     };
+    
+    console.log(`✅ Tracked PDF for: ${contactData.firstName} ${contactData.lastName}`);
     
     // Clean up old PDFs (older than 10 minutes)
     cleanupOldPDFs(pdfsDir);
