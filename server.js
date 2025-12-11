@@ -98,23 +98,40 @@ app.get('/program-success', (req, res) => {
           <p style="color: #666; font-size: 14px;">This may take 20-40 seconds...</p>
           <p id="timer" style="color: #E31E24; font-size: 18px; margin-top: 20px;">0s elapsed</p>
           <script>
-            let seconds = 0;
+            // Get start time from sessionStorage or set it now
+            if (!sessionStorage.getItem('generationStartTime')) {
+              sessionStorage.setItem('generationStartTime', Date.now());
+            }
+            
+            const startTime = parseInt(sessionStorage.getItem('generationStartTime'));
             const maxSeconds = 90;
             
-            // Update timer immediately and every 1 second
-            const timerInterval = setInterval(() => {
-              seconds++;
-              document.getElementById('timer').textContent = seconds + 's elapsed';
+            function updateTimer() {
+              const elapsed = Math.floor((Date.now() - startTime) / 1000);
+              document.getElementById('timer').textContent = elapsed + 's elapsed';
               
-              if (seconds >= maxSeconds) {
-                clearInterval(timerInterval);
+              if (elapsed >= maxSeconds) {
+                sessionStorage.removeItem('generationStartTime');
                 document.body.innerHTML = '<h1>✅ Program Sent!</h1><p>Your training program has been emailed to the client.</p><p style="color: #666; font-size: 14px;">If you need to access it, check the client\\'s email or GHL contact files.</p>';
+                return false;
+              }
+              return true;
+            }
+            
+            // Update immediately
+            updateTimer();
+            
+            // Update every second
+            const timerInterval = setInterval(() => {
+              if (!updateTimer()) {
+                clearInterval(timerInterval);
               }
             }, 1000);
             
             // Auto-refresh every 3 seconds to check if PDF is ready
             setTimeout(() => {
-              if (seconds < maxSeconds) {
+              const elapsed = Math.floor((Date.now() - startTime) / 1000);
+              if (elapsed < maxSeconds) {
                 window.location.reload();
               }
             }, 3000);
@@ -155,6 +172,9 @@ app.get('/program-success', (req, res) => {
         <p>Opening training program...</p>
         <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24; font-weight: bold;">click here</a></p>
         <script>
+          // Clear the generation timer
+          sessionStorage.removeItem('generationStartTime');
+          
           setTimeout(() => {
             window.location.href = "${pdfUrl}";
           }, 1000);
@@ -678,7 +698,6 @@ function formatProgramHTML(contactData, programContent) {
           <h2>PROGRAM OVERVIEW</h2>
         </div>
         <div class="header-right">
-          <p>TRAINER: ${programContent.trainerName || ''}</p>
           <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
         </div>
       </div>
@@ -727,7 +746,6 @@ function formatProgramHTML(contactData, programContent) {
             <h2>DAY ${workout.day} - ${workout.title.toUpperCase()}</h2>
           </div>
           <div class="header-right">
-            <p>TRAINER: ${programContent.trainerName || ''}</p>
             <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
           </div>
         </div>
