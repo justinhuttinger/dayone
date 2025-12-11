@@ -95,11 +95,27 @@ app.get('/program-success', (req, res) => {
         <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
           <h1>⏳ Generating Program...</h1>
           <p>Your personalized training program is being generated.</p>
-          <p style="color: #666; font-size: 14px;">This page will automatically refresh when ready.</p>
+          <p style="color: #666; font-size: 14px;">This may take 20-40 seconds...</p>
+          <p id="timer" style="color: #E31E24; font-size: 18px; margin-top: 20px;"></p>
           <script>
+            let seconds = 0;
+            const maxSeconds = 90;
+            
+            // Update timer
+            setInterval(() => {
+              seconds += 2;
+              document.getElementById('timer').textContent = seconds + 's elapsed';
+              
+              if (seconds >= maxSeconds) {
+                document.body.innerHTML = '<h1>✅ Program Sent!</h1><p>Your training program has been emailed to the client.</p><p style="color: #666; font-size: 14px;">If you need to access it, check the client\\'s email or GHL contact files.</p>';
+              }
+            }, 2000);
+            
             // Auto-refresh every 2 seconds to check if PDF is ready
             setTimeout(() => {
-              window.location.reload();
+              if (seconds < maxSeconds) {
+                window.location.reload();
+              }
             }, 2000);
           </script>
         </body>
@@ -228,21 +244,17 @@ app.post('/webhook/generate-program', async (req, res) => {
     
     console.log('📝 Parsed formData:', JSON.stringify(formData, null, 2));
     
-    // Process SYNCHRONOUSLY and wait for PDF URL
-    const pdfUrl = await generateAndSendProgram(contactId, club, formData);
-    
-    // Build redirect URL (static - no variables needed)
-    const baseUrl = process.env.BASE_URL || 'https://dayone-xe91.onrender.com';
-    const redirectUrl = `${baseUrl}/program-success`;
-    
-    // Return PDF URL in response
+    // Quick response to GHL (don't wait)
     res.status(200).json({ 
-      message: 'Program generated successfully',
+      message: 'Program generation started',
       club: club.clubName,
       contactId: contactId,
-      pdfUrl: pdfUrl,
-      redirectUrl: redirectUrl,
       success: true
+    });
+    
+    // Process ASYNCHRONOUSLY in background
+    generateAndSendProgram(contactId, club, formData).catch(err => {
+      console.error('Background generation error:', err);
     });
     
   } catch (error) {
