@@ -73,6 +73,43 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Success redirect page - receives PDF URL from webhook and redirects user to it
+app.get('/program-success', (req, res) => {
+  const pdfUrl = req.query.pdfUrl;
+  
+  if (!pdfUrl) {
+    return res.send(`
+      <html>
+        <head><title>Program Generated</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h1>❌ Error</h1>
+          <p>No PDF URL provided.</p>
+        </body>
+      </html>
+    `);
+  }
+  
+  res.send(`
+    <html>
+      <head>
+        <title>Program Generated</title>
+        <meta http-equiv="refresh" content="1;url=${pdfUrl}">
+      </head>
+      <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+        <h1>✅ Your Program is Ready!</h1>
+        <p>Opening your personalized training program...</p>
+        <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24;">click here</a></p>
+        <script>
+          // Redirect immediately
+          setTimeout(() => {
+            window.location.href = "${pdfUrl}";
+          }, 500);
+        </script>
+      </body>
+    </html>
+  `);
+});
+
 // Main webhook endpoint from GHL
 app.post('/webhook/generate-program', async (req, res) => {
   try {
@@ -158,12 +195,17 @@ app.post('/webhook/generate-program', async (req, res) => {
     // Process SYNCHRONOUSLY and wait for PDF URL
     const pdfUrl = await generateAndSendProgram(contactId, club, formData);
     
+    // Build redirect URL that trainer can use
+    const baseUrl = process.env.BASE_URL || 'https://dayone-xe91.onrender.com';
+    const redirectUrl = `${baseUrl}/program-success?pdfUrl=${encodeURIComponent(pdfUrl)}`;
+    
     // Return PDF URL in response
     res.status(200).json({ 
       message: 'Program generated successfully',
       club: club.clubName,
       contactId: contactId,
       pdfUrl: pdfUrl,
+      redirectUrl: redirectUrl,
       success: true
     });
     
