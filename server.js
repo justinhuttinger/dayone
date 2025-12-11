@@ -4,6 +4,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs').promises;
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
+const FormData = require('form-data');
 require('dotenv').config();
 
 const app = express();
@@ -154,15 +155,17 @@ app.post('/webhook/generate-program', async (req, res) => {
     
     console.log('📝 Parsed formData:', JSON.stringify(formData, null, 2));
     
-    // Quick response to GHL
-    res.status(200).json({ 
-      message: 'Program generation started',
-      club: club.clubName,
-      contactId: contactId
-    });
+    // Process SYNCHRONOUSLY and wait for PDF URL
+    const pdfUrl = await generateAndSendProgram(contactId, club, formData);
     
-    // Process asynchronously
-    generateAndSendProgram(contactId, club, formData);
+    // Return PDF URL in response
+    res.status(200).json({ 
+      message: 'Program generated successfully',
+      club: club.clubName,
+      contactId: contactId,
+      pdfUrl: pdfUrl,
+      success: true
+    });
     
   } catch (error) {
     console.error('❌ Webhook error:', error);
@@ -199,17 +202,22 @@ async function generateAndSendProgram(contactId, club, formData) {
     const pdfBuffer = await generatePDF(contactData, programContent);
     console.log('📄 PDF created');
     
-    // Step 5: Email PDF to client
+    // Step 6: Upload PDF to GHL and get shareable URL
+    const pdfUrl = await uploadPDFtoGHL(contactId, club, pdfBuffer, contactData);
+    console.log(`📤 PDF uploaded to GHL: ${pdfUrl}`);
+    
+    // Step 7: Email PDF to client
     await sendProgramEmail(contactData, club, pdfBuffer);
     console.log(`✅ Program sent to: ${contactData.email}`);
     
-    // Step 6: Upload PDF to GHL contact record (optional)
-    // await uploadToGHL(contactId, club, pdfBuffer);
+    // Return the PDF URL
+    return pdfUrl;
     
   } catch (error) {
     console.error('❌ Program generation error:', error);
     // Send error notification
     await sendErrorNotification(error, contactId, club);
+    throw error; // Re-throw so webhook can return error
   }
 }
 
@@ -482,16 +490,15 @@ CRITICAL INSTRUCTIONS:
 4. ${biggestObstacles ? `Address their biggest obstacle: ${biggestObstacles}` : 'Focus on sustainable, progressive programming'}
 5. ALWAYS include 1-2 exercise variations for each exercise in the "variations" field
 6. NEVER mention or recommend consulting a physical therapist, doctor, physician, medical professional, or healthcare provider. Simply provide exercise modifications and alternatives instead.
-7. Never put Deadlifts anywhere besides first or second in a workout.
-8. EXERCISE ORDER IS CRITICAL - Follow this structure for each workout:
+7. EXERCISE ORDER IS CRITICAL - Follow this structure for each workout:
    - Start with the most demanding compound lifts that use large muscle groups (squats, deadlifts, bench press, rows, overhead press)
    - Then move to secondary compound movements
    - Finish with isolation/accessory exercises for smaller muscles
    - NEVER jump between muscle groups - complete ALL exercises for a muscle group before moving to the next
    - Example: Do ALL back exercises first, THEN all bicep exercises. Never go back→bicep→back
    - Example: Do ALL chest exercises first, THEN all tricep exercises. Never go chest→tricep→chest
-9. TERMINOLOGY MUST MATCH PROGRAM - Only define terms in the terminology section that are actually used in the exercises or notes. If you use "superset" in the program, define it. If you don't use "AMRAP", don't define it.
-10. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
+8. TERMINOLOGY MUST MATCH PROGRAM - Only define terms in the terminology section that are actually used in the exercises or notes. If you use "superset" in the program, define it. If you don't use "AMRAP", don't define it.
+9. Return ONLY valid JSON. No markdown code blocks. No text before or after the JSON.`;
 }
 
 // Generate PDF from HTML template
@@ -670,6 +677,57 @@ function formatProgramHTML(contactData, programContent) {
   });
   
   return html;
+}
+
+// Upload PDF to GHL contact files and return shareable URL
+async function uploadPDFtoGHL(contactId, club, pdfBuffer, contactData) {
+  try {
+    const form = new FormData();
+    
+    const filename = `Training_Program_${contactData.firstName}_${contactData.lastName}.pdf`;
+    
+    // Add the PDF file to form data
+    form.append('file', pdfBuffer, {
+      filename: filename,
+      contentType: 'application/pdf'
+    });
+    
+    // Upload to GHL files endpoint
+    const response = await axios.post(
+      `https://services.leadconnectorhq.com/files/`,
+      form,
+      {
+        headers: {
+          ...form.getHeaders(),
+          'Authorization': `Bearer ${club.ghlApiKey}`,
+          'Version': '2021-07-28'
+        },
+        params: {
+          contactId: contactId,
+          locationId: club.ghlLocationId
+        }
+      }
+    );
+    
+    console.log('GHL Upload Response:', response.data);
+    
+    // Return the file URL from response
+    if (response.data && response.data.fileUrl) {
+      return response.data.fileUrl;
+    } else if (response.data && response.data.url) {
+      return response.data.url;
+    } else if (response.data && response.data.id) {
+      // If only ID is returned, construct the URL
+      return `https://services.leadconnectorhq.com/files/${response.data.id}`;
+    } else {
+      console.error('Unexpected GHL upload response:', response.data);
+      throw new Error('Could not get file URL from GHL upload response');
+    }
+    
+  } catch (error) {
+    console.error('Error uploading to GHL:', error.response?.data || error.message);
+    throw error;
+  }
 }
 
 // Send program via email
