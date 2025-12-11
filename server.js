@@ -10,6 +10,9 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
+// Temporary storage for PDF URLs (in production, use Redis or similar)
+const pdfUrlCache = new Map();
+
 // Initialize SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -73,17 +76,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Success redirect page - receives PDF URL from webhook and redirects user to it
-app.get('/program-success', (req, res) => {
-  const pdfUrl = req.query.pdfUrl;
+// Success redirect page - looks up the PDF URL for the contact
+app.get('/program-success/:contactId', (req, res) => {
+  const contactId = req.params.contactId;
+  const pdfUrl = pdfUrlCache.get(contactId);
   
   if (!pdfUrl) {
     return res.send(`
       <html>
         <head><title>Program Generated</title></head>
         <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-          <h1>❌ Error</h1>
-          <p>No PDF URL provided.</p>
+          <h1>✅ Program Generated!</h1>
+          <p>Your personalized training program has been emailed to the client.</p>
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">The direct link has expired. Please check the client's email or contact files in GHL.</p>
         </body>
       </html>
     `);
@@ -98,9 +103,8 @@ app.get('/program-success', (req, res) => {
       <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
         <h1>✅ Your Program is Ready!</h1>
         <p>Opening your personalized training program...</p>
-        <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24;">click here</a></p>
+        <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24; font-weight: bold;">click here</a></p>
         <script>
-          // Redirect immediately
           setTimeout(() => {
             window.location.href = "${pdfUrl}";
           }, 500);
@@ -195,9 +199,13 @@ app.post('/webhook/generate-program', async (req, res) => {
     // Process SYNCHRONOUSLY and wait for PDF URL
     const pdfUrl = await generateAndSendProgram(contactId, club, formData);
     
+    // Store PDF URL in cache with contactId (expires after 5 minutes)
+    pdfUrlCache.set(contactId, pdfUrl);
+    setTimeout(() => pdfUrlCache.delete(contactId), 5 * 60 * 1000);
+    
     // Build redirect URL that trainer can use
     const baseUrl = process.env.BASE_URL || 'https://dayone-xe91.onrender.com';
-    const redirectUrl = `${baseUrl}/program-success?pdfUrl=${encodeURIComponent(pdfUrl)}`;
+    const redirectUrl = `${baseUrl}/program-success/${contactId}`;
     
     // Return PDF URL in response
     res.status(200).json({ 
