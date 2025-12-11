@@ -933,7 +933,7 @@ async function uploadToABCFinancial(memberId, clubNumber, pdfBuffer, contactData
     
     // ABC Financial API endpoint for uploading documents
     const response = await axios.post(
-      `https://api.abcfinancial.com/rest/clubs/${clubNumber}/members/${memberId}/documents`,
+      `https://api.abcfinancial.com/rest/${clubNumber}/members/documents/${memberId}`,
       form,
       {
         headers: {
@@ -949,6 +949,10 @@ async function uploadToABCFinancial(memberId, clubNumber, pdfBuffer, contactData
     
   } catch (error) {
     console.error('Error uploading to ABC Financial:', error.response?.data || error.message);
+    console.error('ABC API URL attempted:', `https://api.abcfinancial.com/rest/${clubNumber}/members/documents/${memberId}`);
+    console.error('Club Number:', clubNumber);
+    console.error('Member ID:', memberId);
+    console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
     throw error;
   }
 }
