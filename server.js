@@ -323,7 +323,16 @@ async function generateAndSendProgram(contactId, club, formData) {
     console.log(`✅ Program sent to: ${contactData.email}`);
     
     // Step 8: Upload to ABC Financial if member ID exists
-    const abcMemberId = contactData.customFields['ABC Member ID'] || contactData.customFields['abc_member_id'];
+    console.log('🔍 Checking for ABC Member ID...');
+    console.log('Available custom fields:', Object.keys(contactData.customFields));
+    
+    const abcMemberId = contactData.customFields['ABC Member ID'] 
+                     || contactData.customFields['abc_member_id']
+                     || contactData.customFields['ABC_Member_ID']
+                     || contactData.customFields['abcMemberId'];
+    
+    console.log('ABC Member ID found:', abcMemberId);
+    
     if (abcMemberId && club.clubNumber) {
       try {
         await uploadToABCFinancial(abcMemberId, club.clubNumber, pdfBuffer, contactData);
@@ -332,7 +341,11 @@ async function generateAndSendProgram(contactId, club, formData) {
         console.warn('⚠️  Failed to upload to ABC Financial:', error.message);
       }
     } else {
-      console.log('ℹ️  Skipping ABC upload - no ABC Member ID in custom fields');
+      if (!abcMemberId) {
+        console.log('ℹ️  Skipping ABC upload - no ABC Member ID in custom fields');
+      } else {
+        console.log('ℹ️  Skipping ABC upload - no club number configured');
+      }
     }
     
     // Return the local PDF URL
@@ -362,6 +375,11 @@ async function fetchGHLContact(contactId, club) {
   
   const contact = response.data.contact;
   
+  // Custom fields can be in customField or customFields
+  const customFields = contact.customFields || contact.customField || {};
+  
+  console.log('📋 Contact custom fields:', JSON.stringify(customFields, null, 2));
+  
   return {
     id: contact.id,
     name: contact.name || 'Client',
@@ -369,7 +387,7 @@ async function fetchGHLContact(contactId, club) {
     lastName: contact.lastName || '',
     email: contact.email,
     phone: contact.phone,
-    customFields: contact.customField || {},
+    customFields: customFields,
     tags: contact.tags || [],
     locationId: club.ghlLocationId,
     locationName: club.clubName,
