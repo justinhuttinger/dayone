@@ -921,34 +921,43 @@ async function sendProgramEmail(contactData, club, pdfBuffer) {
 // Upload PDF to ABC Financial member documents
 async function uploadToABCFinancial(memberId, clubNumber, pdfBuffer, contactData) {
   try {
-    const form = new FormData();
-    
     const filename = `Training_Program_${contactData.firstName}_${contactData.lastName}.pdf`;
     
-    // Add the PDF file to form data
-    form.append('file', pdfBuffer, {
+    // ABC Financial expects JSON with base64-encoded PDF (NOT multipart form data!)
+    const documentPayload = {
+      document: pdfBuffer.toString('base64'),
+      documentName: filename,
+      documentType: "pdf",
+      imageType: "member_document",
+      memberId: memberId
+    };
+    
+    console.log('📤 Uploading to ABC:', {
+      url: `https://api.abcfinancial.com/rest/${clubNumber}/members/documents/${memberId}`,
       filename: filename,
-      contentType: 'application/pdf'
+      clubNumber: clubNumber,
+      memberId: memberId,
+      documentSize: pdfBuffer.length
     });
     
     // ABC Financial API endpoint for uploading documents
     const response = await axios.post(
       `https://api.abcfinancial.com/rest/${clubNumber}/members/documents/${memberId}`,
-      form,
+      documentPayload,
       {
         headers: {
-          ...form.getHeaders(),
           'app_id': process.env.ABC_APP_ID,
-          'app_key': process.env.ABC_APP_KEY
+          'app_key': process.env.ABC_APP_KEY,
+          'Content-Type': 'application/json'
         }
       }
     );
     
-    console.log('ABC Upload Response:', response.data);
+    console.log('✅ ABC Upload Response:', response.data);
     return response.data;
     
   } catch (error) {
-    console.error('Error uploading to ABC Financial:', error.response?.data || error.message);
+    console.error('❌ Error uploading to ABC Financial:', error.response?.data || error.message);
     console.error('ABC API URL attempted:', `https://api.abcfinancial.com/rest/${clubNumber}/members/documents/${memberId}`);
     console.error('Club Number:', clubNumber);
     console.error('Member ID:', memberId);
