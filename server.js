@@ -10,8 +10,18 @@ require('dotenv').config();
 const app = express();
 app.use(express.json());
 
+// Serve static PDF files from /pdfs directory
+app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
+
 // Temporary storage for PDF URLs (in production, use Redis or similar)
 const pdfUrlCache = new Map();
+
+// Store the most recent PDF info for the success page
+let lastGeneratedPdf = {
+  contactId: null,
+  fileName: null,
+  timestamp: null
+};
 
 // Initialize SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -76,12 +86,32 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Success redirect page - looks up the PDF URL for the contact
-app.get('/program-success/:contactId', (req, res) => {
-  const contactId = req.params.contactId;
-  const pdfUrl = pdfUrlCache.get(contactId);
+// Success redirect page - shows the most recently generated PDF
+app.get('/program-success', (req, res) => {
+  if (!lastGeneratedPdf.fileName || !lastGeneratedPdf.timestamp) {
+    return res.send(`
+      <html>
+        <head><title>Program Generated</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h1>⏳ Generating Program...</h1>
+          <p>Your personalized training program is being generated.</p>
+          <p style="color: #666; font-size: 14px;">This page will automatically refresh when ready.</p>
+          <script>
+            // Auto-refresh every 2 seconds to check if PDF is ready
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          </script>
+        </body>
+      </html>
+    `);
+  }
   
-  if (!pdfUrl) {
+  // Check if PDF is recent (within last 2 minutes)
+  const age = Date.now() - lastGeneratedPdf.timestamp;
+  const twoMinutes = 2 * 60 * 1000;
+  
+  if (age > twoMinutes) {
     return res.send(`
       <html>
         <head><title>Program Generated</title></head>
@@ -93,6 +123,8 @@ app.get('/program-success/:contactId', (req, res) => {
       </html>
     `);
   }
+  
+  const pdfUrl = `/pdfs/${lastGeneratedPdf.fileName}`;
   
   res.send(`
     <html>
@@ -199,13 +231,9 @@ app.post('/webhook/generate-program', async (req, res) => {
     // Process SYNCHRONOUSLY and wait for PDF URL
     const pdfUrl = await generateAndSendProgram(contactId, club, formData);
     
-    // Store PDF URL in cache with contactId (expires after 5 minutes)
-    pdfUrlCache.set(contactId, pdfUrl);
-    setTimeout(() => pdfUrlCache.delete(contactId), 5 * 60 * 1000);
-    
-    // Build redirect URL that trainer can use
+    // Build redirect URL (static - no variables needed)
     const baseUrl = process.env.BASE_URL || 'https://dayone-xe91.onrender.com';
-    const redirectUrl = `${baseUrl}/program-success/${contactId}`;
+    const redirectUrl = `${baseUrl}/program-success`;
     
     // Return PDF URL in response
     res.status(200).json({ 
@@ -252,15 +280,23 @@ async function generateAndSendProgram(contactId, club, formData) {
     const pdfBuffer = await generatePDF(contactData, programContent);
     console.log('📄 PDF created');
     
-    // Step 6: Upload PDF to GHL and get shareable URL
-    const pdfUrl = await uploadPDFtoGHL(contactId, club, pdfBuffer, contactData);
-    console.log(`📤 PDF uploaded to GHL: ${pdfUrl}`);
+    // Step 6: Save PDF to disk and get local URL
+    const pdfUrl = await savePDFToDisk(contactId, pdfBuffer, contactData);
+    console.log(`💾 PDF saved locally: ${pdfUrl}`);
     
-    // Step 7: Email PDF to client
+    // Step 7: Also upload to GHL for permanent storage
+    try {
+      const ghlUrl = await uploadPDFtoGHL(contactId, club, pdfBuffer, contactData);
+      console.log(`📤 PDF uploaded to GHL: ${ghlUrl}`);
+    } catch (error) {
+      console.warn('⚠️  Failed to upload to GHL, but local PDF available:', error.message);
+    }
+    
+    // Step 8: Email PDF to client
     await sendProgramEmail(contactData, club, pdfBuffer);
     console.log(`✅ Program sent to: ${contactData.email}`);
     
-    // Return the PDF URL
+    // Return the local PDF URL
     return pdfUrl;
     
   } catch (error) {
@@ -727,6 +763,65 @@ function formatProgramHTML(contactData, programContent) {
   });
   
   return html;
+}
+
+// Save PDF to local disk and return URL
+async function savePDFToDisk(contactId, pdfBuffer, contactData) {
+  try {
+    // Create pdfs directory if it doesn't exist
+    const pdfsDir = path.join(__dirname, 'pdfs');
+    try {
+      await fs.mkdir(pdfsDir, { recursive: true });
+    } catch (err) {
+      // Directory might already exist
+    }
+    
+    // Generate filename with timestamp
+    const timestamp = Date.now();
+    const filename = `Training_Program_${contactData.firstName}_${contactData.lastName}_${timestamp}.pdf`;
+    const filepath = path.join(pdfsDir, filename);
+    
+    // Save PDF to disk
+    await fs.writeFile(filepath, pdfBuffer);
+    
+    // Update the lastGeneratedPdf tracker
+    lastGeneratedPdf = {
+      contactId: contactId,
+      fileName: filename,
+      timestamp: timestamp
+    };
+    
+    // Clean up old PDFs (older than 10 minutes)
+    cleanupOldPDFs(pdfsDir);
+    
+    // Return the public URL
+    const baseUrl = process.env.BASE_URL || 'https://dayone-xe91.onrender.com';
+    return `${baseUrl}/pdfs/${filename}`;
+    
+  } catch (error) {
+    console.error('Error saving PDF to disk:', error);
+    throw error;
+  }
+}
+
+// Clean up old PDFs from disk
+async function cleanupOldPDFs(pdfsDir) {
+  try {
+    const files = await fs.readdir(pdfsDir);
+    const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+    
+    for (const file of files) {
+      const filepath = path.join(pdfsDir, file);
+      const stats = await fs.stat(filepath);
+      
+      if (stats.mtimeMs < tenMinutesAgo) {
+        await fs.unlink(filepath);
+        console.log(`🗑️  Cleaned up old PDF: ${file}`);
+      }
+    }
+  } catch (error) {
+    console.warn('Error cleaning up old PDFs:', error.message);
+  }
 }
 
 // Upload PDF to GHL contact files and return shareable URL
