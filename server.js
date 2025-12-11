@@ -330,6 +330,19 @@ async function generateAndSendProgram(contactId, club, formData) {
     await sendProgramEmail(contactData, club, pdfBuffer);
     console.log(`✅ Program sent to: ${contactData.email}`);
     
+    // Step 9: Upload to ABC Financial if member ID exists
+    const abcMemberId = contactData.customFields['ABC Member ID'] || contactData.customFields['abc_member_id'];
+    if (abcMemberId && club.clubNumber) {
+      try {
+        await uploadToABCFinancial(abcMemberId, club.clubNumber, pdfBuffer, contactData);
+        console.log(`📤 PDF uploaded to ABC Financial for member: ${abcMemberId}`);
+      } catch (error) {
+        console.warn('⚠️  Failed to upload to ABC Financial:', error.message);
+      }
+    } else {
+      console.log('ℹ️  Skipping ABC upload - no ABC Member ID in custom fields');
+    }
+    
     // Return the local PDF URL
     return pdfUrl;
     
@@ -697,7 +710,7 @@ function formatProgramHTML(contactData, programContent) {
           <h1>WEST COAST STRENGTH</h1>
           <h2>PROGRAM OVERVIEW</h2>
         </div>
-        <div class="header-right">
+        <div class="header-right" style="padding-top: 8px;">
           <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
         </div>
       </div>
@@ -745,7 +758,7 @@ function formatProgramHTML(contactData, programContent) {
             <h1>WEST COAST STRENGTH</h1>
             <h2>DAY ${workout.day} - ${workout.title.toUpperCase()}</h2>
           </div>
-          <div class="header-right">
+          <div class="header-right" style="padding-top: 8px;">
             <p>CLIENT: ${contactData.firstName} ${contactData.lastName}</p>
           </div>
         </div>
@@ -937,6 +950,41 @@ async function sendProgramEmail(contactData, club, pdfBuffer) {
   };
   
   await sgMail.send(msg);
+}
+
+// Upload PDF to ABC Financial member documents
+async function uploadToABCFinancial(memberId, clubNumber, pdfBuffer, contactData) {
+  try {
+    const form = new FormData();
+    
+    const filename = `Training_Program_${contactData.firstName}_${contactData.lastName}.pdf`;
+    
+    // Add the PDF file to form data
+    form.append('file', pdfBuffer, {
+      filename: filename,
+      contentType: 'application/pdf'
+    });
+    
+    // ABC Financial API endpoint for uploading documents
+    const response = await axios.post(
+      `https://api.abcfinancial.com/rest/clubs/${clubNumber}/members/${memberId}/documents`,
+      form,
+      {
+        headers: {
+          ...form.getHeaders(),
+          'app_id': process.env.ABC_APP_ID,
+          'app_key': process.env.ABC_APP_KEY
+        }
+      }
+    );
+    
+    console.log('ABC Upload Response:', response.data);
+    return response.data;
+    
+  } catch (error) {
+    console.error('Error uploading to ABC Financial:', error.response?.data || error.message);
+    throw error;
+  }
 }
 
 // Send error notification
