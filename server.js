@@ -318,19 +318,11 @@ async function generateAndSendProgram(contactId, club, formData) {
     const pdfUrl = await savePDFToDisk(contactId, pdfBuffer, contactData);
     console.log(`💾 PDF saved locally: ${pdfUrl}`);
     
-    // Step 7: Also upload to GHL for permanent storage
-    try {
-      const ghlUrl = await uploadPDFtoGHL(contactId, club, pdfBuffer, contactData);
-      console.log(`📤 PDF uploaded to GHL: ${ghlUrl}`);
-    } catch (error) {
-      console.warn('⚠️  Failed to upload to GHL, but local PDF available:', error.message);
-    }
-    
-    // Step 8: Email PDF to client
+    // Step 7: Email PDF to client
     await sendProgramEmail(contactData, club, pdfBuffer);
     console.log(`✅ Program sent to: ${contactData.email}`);
     
-    // Step 9: Upload to ABC Financial if member ID exists
+    // Step 8: Upload to ABC Financial if member ID exists
     const abcMemberId = contactData.customFields['ABC Member ID'] || contactData.customFields['abc_member_id'];
     if (abcMemberId && club.clubNumber) {
       try {
@@ -869,57 +861,6 @@ async function cleanupOldPDFs(pdfsDir) {
     }
   } catch (error) {
     console.warn('Error cleaning up old PDFs:', error.message);
-  }
-}
-
-// Upload PDF to GHL contact files and return shareable URL
-async function uploadPDFtoGHL(contactId, club, pdfBuffer, contactData) {
-  try {
-    const form = new FormData();
-    
-    const filename = `Training_Program_${contactData.firstName}_${contactData.lastName}.pdf`;
-    
-    // Add the PDF file to form data
-    form.append('file', pdfBuffer, {
-      filename: filename,
-      contentType: 'application/pdf'
-    });
-    
-    // Upload to GHL files endpoint
-    const response = await axios.post(
-      `https://services.leadconnectorhq.com/files/`,
-      form,
-      {
-        headers: {
-          ...form.getHeaders(),
-          'Authorization': `Bearer ${club.ghlApiKey}`,
-          'Version': '2021-07-28'
-        },
-        params: {
-          contactId: contactId,
-          locationId: club.ghlLocationId
-        }
-      }
-    );
-    
-    console.log('GHL Upload Response:', response.data);
-    
-    // Return the file URL from response
-    if (response.data && response.data.fileUrl) {
-      return response.data.fileUrl;
-    } else if (response.data && response.data.url) {
-      return response.data.url;
-    } else if (response.data && response.data.id) {
-      // If only ID is returned, construct the URL
-      return `https://services.leadconnectorhq.com/files/${response.data.id}`;
-    } else {
-      console.error('Unexpected GHL upload response:', response.data);
-      throw new Error('Could not get file URL from GHL upload response');
-    }
-    
-  } catch (error) {
-    console.error('Error uploading to GHL:', error.response?.data || error.message);
-    throw error;
   }
 }
 
