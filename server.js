@@ -14,6 +14,7 @@ app.use(express.json());
 app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
 
 // Track the most recent PDF generated
+// In practice, trainers submit forms sequentially, not simultaneously
 let lastGeneratedPdf = {
   contactId: null,
   contactName: null,
@@ -84,69 +85,85 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Success redirect page - 15 second delay then shows most recent PDF
+// Success redirect page - shows most recent PDF with contact name
 app.get('/program-success', (req, res) => {
   
-  res.send(`
-    <html>
-      <head><title>Generating Program...</title></head>
-      <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-        <h1>⏳ Generating Program...</h1>
-        <p>Your personalized training program is being created.</p>
-        <p style="font-size: 48px; color: #E31E24; margin: 30px 0;" id="countdown">15</p>
-        <p style="color: #666; font-size: 14px;">seconds remaining</p>
-        <script>
-          let seconds = 15;
-          const countdownEl = document.getElementById('countdown');
-          
-          const timer = setInterval(() => {
-            seconds--;
-            countdownEl.textContent = seconds;
+  // Get the timestamp from query param (set on first load via JS redirect)
+  const submittedAt = parseInt(req.query.t) || 0;
+  
+  // If no timestamp yet, redirect with current timestamp
+  // This marks "when we started waiting" so we only show NEW pdfs
+  if (!submittedAt) {
+    return res.send(`
+      <html>
+        <head><title>Redirecting...</title></head>
+        <body>
+          <script>
+            window.location.href = '/program-success?t=' + Date.now();
+          </script>
+        </body>
+      </html>
+    `);
+  }
+  
+  // Only show PDF if it was generated AFTER the form was submitted
+  const pdfIsNew = lastGeneratedPdf.timestamp && lastGeneratedPdf.timestamp > submittedAt;
+  
+  if (!lastGeneratedPdf.fileName || !pdfIsNew) {
+    // Check if we've been waiting too long (90 seconds)
+    const waitTime = Date.now() - submittedAt;
+    const maxWait = 90 * 1000;
+    
+    if (waitTime > maxWait) {
+      return res.send(`
+        <html>
+          <head><title>Program Sent</title></head>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1>✅ Program Sent!</h1>
+            <p>Your training program has been emailed to the client.</p>
+            <p style="color: #666; font-size: 14px;">If you need to access it, check the client's email or GHL contact files.</p>
+          </body>
+        </html>
+      `);
+    }
+    
+    const elapsed = Math.floor(waitTime / 1000);
+    
+    return res.send(`
+      <html>
+        <head><title>Generating Program...</title></head>
+        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+          <h1>⏳ Generating Program...</h1>
+          <p>Your personalized training program is being generated.</p>
+          <p style="color: #666; font-size: 14px;">This may take 20-40 seconds...</p>
+          <p id="timer" style="color: #E31E24; font-size: 18px; margin-top: 20px;">${elapsed}s elapsed</p>
+          <script>
+            let seconds = ${elapsed};
+            const maxSeconds = 90;
             
-            if (seconds <= 0) {
-              clearInterval(timer);
-              window.location.href = '/program-ready';
-            }
-          }, 1000);
-        </script>
-      </body>
-    </html>
-  `);
-});
-
-// After the delay, this page shows the actual PDF
-app.get('/program-ready', (req, res) => {
-  
-  if (!lastGeneratedPdf.fileName || !lastGeneratedPdf.timestamp) {
-    return res.send(`
-      <html>
-        <head><title>Program Generated</title></head>
-        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-          <h1>✅ Program Sent!</h1>
-          <p>Your training program has been emailed to the client.</p>
-          <p style="color: #666; font-size: 14px;">If you need to access it, check the client's email or GHL contact files.</p>
+            // Update timer every second
+            const timerInterval = setInterval(() => {
+              seconds++;
+              document.getElementById('timer').textContent = seconds + 's elapsed';
+              
+              if (seconds >= maxSeconds) {
+                clearInterval(timerInterval);
+              }
+            }, 1000);
+            
+            // Auto-refresh every 3 seconds to check if PDF is ready
+            setTimeout(() => {
+              if (seconds < maxSeconds) {
+                window.location.href = '/program-success?t=${submittedAt}';
+              }
+            }, 3000);
+          </script>
         </body>
       </html>
     `);
   }
   
-  // Check if PDF is recent (within last 5 minutes)
-  const age = Date.now() - lastGeneratedPdf.timestamp;
-  const fiveMinutes = 5 * 60 * 1000;
-  
-  if (age > fiveMinutes) {
-    return res.send(`
-      <html>
-        <head><title>Program Generated</title></head>
-        <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-          <h1>✅ Program Generated!</h1>
-          <p>The training program has been emailed to the client.</p>
-          <p style="color: #666; font-size: 14px; margin-top: 30px;">The direct link has expired. Please check the client's email or contact files in GHL.</p>
-        </body>
-      </html>
-    `);
-  }
-  
+  // PDF is ready and is NEW - show it
   const pdfUrl = `/pdfs/${lastGeneratedPdf.fileName}`;
   
   res.send(`
@@ -161,6 +178,9 @@ app.get('/program-ready', (req, res) => {
         <p>Opening training program...</p>
         <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24; font-weight: bold;">click here</a></p>
         <script>
+          // Clear the generation timer
+          sessionStorage.removeItem('generationStartTime');
+          
           setTimeout(() => {
             window.location.href = "${pdfUrl}";
           }, 1000);
