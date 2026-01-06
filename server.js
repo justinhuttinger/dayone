@@ -13,14 +13,20 @@ app.use(express.json());
 // Serve static PDF files from /pdfs directory
 app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
 
-// Track the most recent PDF generated
-// In practice, trainers submit forms sequentially, not simultaneously
-let lastGeneratedPdf = {
-  contactId: null,
-  contactName: null,
-  fileName: null,
-  timestamp: null
-};
+// Track generated PDFs by contact ID (handles concurrent submissions)
+// Each entry expires after 5 minutes
+const generatedPdfs = new Map();
+
+// Clean up expired PDFs from the map every minute
+setInterval(() => {
+  const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+  for (const [contactId, data] of generatedPdfs.entries()) {
+    if (data.timestamp < fiveMinutesAgo) {
+      generatedPdfs.delete(contactId);
+      console.log(`🗑️  Cleaned up PDF tracking for contact: ${contactId}`);
+    }
+  }
+}, 60 * 1000);
 
 // Initialize SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -85,57 +91,47 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Success redirect page - shows most recent PDF with contact name
+// Success redirect page - 15 second delay then shows most recent PDF
 app.get('/program-success', (req, res) => {
+  
+  res.send(`
+    <html>
+      <head><title>Generating Program...</title></head>
+      <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+        <h1>⏳ Generating Program...</h1>
+        <p>Your personalized training program is being created.</p>
+        <p style="font-size: 48px; color: #E31E24; margin: 30px 0;" id="countdown">15</p>
+        <p style="color: #666; font-size: 14px;">seconds remaining</p>
+        <script>
+          let seconds = 15;
+          const countdownEl = document.getElementById('countdown');
+          
+          const timer = setInterval(() => {
+            seconds--;
+            countdownEl.textContent = seconds;
+            
+            if (seconds <= 0) {
+              clearInterval(timer);
+              window.location.href = '/program-ready';
+            }
+          }, 1000);
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+// After the delay, this page shows the actual PDF
+app.get('/program-ready', (req, res) => {
   
   if (!lastGeneratedPdf.fileName || !lastGeneratedPdf.timestamp) {
     return res.send(`
       <html>
         <head><title>Program Generated</title></head>
         <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-          <h1>⏳ Generating Program...</h1>
-          <p>Your personalized training program is being generated.</p>
-          <p style="color: #666; font-size: 14px;">This may take 20-40 seconds...</p>
-          <p id="timer" style="color: #E31E24; font-size: 18px; margin-top: 20px;">0s elapsed</p>
-          <script>
-            // Get start time from sessionStorage or set it now
-            if (!sessionStorage.getItem('generationStartTime')) {
-              sessionStorage.setItem('generationStartTime', Date.now());
-            }
-            
-            const startTime = parseInt(sessionStorage.getItem('generationStartTime'));
-            const maxSeconds = 90;
-            
-            function updateTimer() {
-              const elapsed = Math.floor((Date.now() - startTime) / 1000);
-              document.getElementById('timer').textContent = elapsed + 's elapsed';
-              
-              if (elapsed >= maxSeconds) {
-                sessionStorage.removeItem('generationStartTime');
-                document.body.innerHTML = '<h1>✅ Program Sent!</h1><p>Your training program has been emailed to the client.</p><p style="color: #666; font-size: 14px;">If you need to access it, check the client\\'s email or GHL contact files.</p>';
-                return false;
-              }
-              return true;
-            }
-            
-            // Update immediately
-            updateTimer();
-            
-            // Update every second
-            const timerInterval = setInterval(() => {
-              if (!updateTimer()) {
-                clearInterval(timerInterval);
-              }
-            }, 1000);
-            
-            // Auto-refresh every 3 seconds to check if PDF is ready
-            setTimeout(() => {
-              const elapsed = Math.floor((Date.now() - startTime) / 1000);
-              if (elapsed < maxSeconds) {
-                window.location.reload();
-              }
-            }, 3000);
-          </script>
+          <h1>✅ Program Sent!</h1>
+          <p>Your training program has been emailed to the client.</p>
+          <p style="color: #666; font-size: 14px;">If you need to access it, check the client's email or GHL contact files.</p>
         </body>
       </html>
     `);
@@ -172,9 +168,6 @@ app.get('/program-success', (req, res) => {
         <p>Opening training program...</p>
         <p style="color: #666; font-size: 14px;">If it doesn't open automatically, <a href="${pdfUrl}" style="color: #E31E24; font-weight: bold;">click here</a></p>
         <script>
-          // Clear the generation timer
-          sessionStorage.removeItem('generationStartTime');
-          
           setTimeout(() => {
             window.location.href = "${pdfUrl}";
           }, 1000);
