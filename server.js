@@ -13,20 +13,13 @@ app.use(express.json());
 // Serve static PDF files from /pdfs directory
 app.use('/pdfs', express.static(path.join(__dirname, 'pdfs')));
 
-// Track generated PDFs by contact ID (handles concurrent submissions)
-// Each entry expires after 5 minutes
-const generatedPdfs = new Map();
-
-// Clean up expired PDFs from the map every minute
-setInterval(() => {
-  const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-  for (const [contactId, data] of generatedPdfs.entries()) {
-    if (data.timestamp < fiveMinutesAgo) {
-      generatedPdfs.delete(contactId);
-      console.log(`🗑️  Cleaned up PDF tracking for contact: ${contactId}`);
-    }
-  }
-}, 60 * 1000);
+// Track the most recent PDF generated
+let lastGeneratedPdf = {
+  contactId: null,
+  contactName: null,
+  fileName: null,
+  timestamp: null
+};
 
 // Initialize SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
